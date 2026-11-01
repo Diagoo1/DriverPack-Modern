@@ -31,9 +31,16 @@ struct Statement
 };
 int Catalog::interrupt(void *self)
 {
-    return static_cast<Catalog *>(self)->m_deadline.elapsed() > 5000 ? 1 : 0;
+    Catalog *catalog = static_cast<Catalog *>(self);
+    catalog->m_operations += 2000;
+    // Bound CPU work, not wall time: optical/USB I/O and slower PCs must not be timed out.
+    if (catalog->m_operations > catalog->m_operationBudget) { catalog->m_budgetExceeded = true; return 1; }
+    try { if (catalog->m_checkpoint) catalog->m_checkpoint(); }
+    catch (...) { catalog->m_checkpointError = std::current_exception(); return 1; }
+    return 0;
 }
-Catalog::Catalog(const QString &file) : m_db(0), m_path(QFileInfo(file).canonicalFilePath())
+Catalog::Catalog(const QString &file, const std::function<void()> &checkpoint, quint64 operationBudget)
+    : m_db(0), m_path(QFileInfo(file).canonicalFilePath()), m_checkpoint(checkpoint), m_operationBudget(operationBudget)
 {
     QFile header(m_path);
     if (!header.open(QIODevice::ReadOnly) || header.read(16) != QByteArray("SQLite format 3\0", 16))
@@ -52,7 +59,7 @@ Catalog::Catalog(const QString &file) : m_db(0), m_path(QFileInfo(file).canonica
     sqlite3_busy_timeout(m_db, 1000);
     sqlite3_limit(m_db, SQLITE_LIMIT_LENGTH, 256 * 1024);
     sqlite3_limit(m_db, SQLITE_LIMIT_SQL_LENGTH, 65536);
-    sqlite3_exec(m_db, "PRAGMA query_only=ON; PRAGMA cache_size=-8192; PRAGMA mmap_size=0;", 0, 0, 0);
+    sqlite3_exec(m_db, "PRAGMA query_only=ON; PRAGMA cache_size=-8192; PRAGMA mmap_size=0; PRAGMA temp_store=MEMORY;", 0, 0, 0);
     Statement schema;
     const char *sql = "SELECT "
                       "d.deviceId,u.system,u.rank,s.build,s.sign,r.pack,r.directory,r.inf,r.allow,r.disallow,"
@@ -88,7 +95,7 @@ QVector<Match> Catalog::find(const QString &hardwareId, const QString &system, i
         fail(QStringLiteral("Invalid catalog lookup."));
     if (fallback && !m_supportFallback)
         return QVector<Match>();
-    m_deadline.restart();
+    m_operations = 0; m_budgetExceeded = false; m_checkpointError = std::exception_ptr();
     Statement statement;
     const QString rank = fallback ? QStringLiteral("u.failoverRank") : QStringLiteral("u.rank");
     const QString sql =
@@ -98,7 +105,7 @@ QVector<Match> Catalog::find(const QString &hardwareId, const QString &system, i
             "pack,r.directory,"
             "r.inf,s.name,s.build,s.sign,%1,r.allow,r.disallow,r.installationHooks,r.dependencies,r.type,%4,"
             "d.id,s.id "
-            "FROM Devices d JOIN Usable u ON u.deviceId=d.id JOIN Sections s ON s.id=u.sectionId JOIN "
+            "FROM Devices d CROSS JOIN Usable u ON u.deviceId=d.id CROSS JOIN Sections s ON s.id=u.sectionId CROSS JOIN "
             "Drivers r ON r.id=s.driverId WHERE %2=?1 AND u.system=?2 AND s.build<=?3 AND (%1>0 OR ?5=1) "
             "ORDER BY "
             "s.build DESC,%1 DESC,d.deviceId %3,r.date DESC,hex(r.id),hex(s.id) LIMIT ?4")
@@ -146,8 +153,10 @@ QVector<Match> Catalog::find(const QString &hardwareId, const QString &system, i
         m.groupKey = originalGroupKey(binary(19), binary(20));
         matches.append(m);
     }
+    if (m_checkpointError) std::rethrow_exception(m_checkpointError);
+    if (m_budgetExceeded) fail(QStringLiteral("Catalog query exceeded its processing budget; the index may be unsuitable."));
     if (result != SQLITE_DONE)
-        fail(QStringLiteral("Catalog query failed or exceeded its time limit: ") +
+        fail(QStringLiteral("Catalog query failed: ") +
              QString::fromUtf8(sqlite3_errmsg(m_db)));
     return matches;
 }

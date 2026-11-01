@@ -1,16 +1,13 @@
-# DriverPack Modern 0.22.0 Beta
+# DriverPack Modern 0.22.1 Beta — portable/ISO reading fix
 
-First public Beta of this independent C++/Qt desktop project by Tarek Sadek (Diagoo1).
+- Replaces the five-second SQLite wall-clock cutoff with a bounded instruction budget and cooperative cancellation. Slow media/PCs are not rejected solely because five seconds elapsed.
+- Pins device-first indexed joins and keeps temporary query data in memory; source catalogs remain read-only.
+- Uses writable local logs for read-only ISO libraries; reads software catalogs without trying to persist them to the disc.
+- Detects an adjacent library after moving the EXE; stale saved paths no longer redirect portable copies. Explicit library choices remain available.
+- Replaces the nested reading/error card with a full-window page and visible native titlebar with the app icon/version, a rounded activity bar, copyable technical details and consistent recovery buttons. Errors do not show a misleading 0% progress bar.
 
-- Single portable x86 EXE; no companion runtime DLLs. External compatible DriverPack library required.
-- Rounded interface, English/Arabic gallery, light/dark/system appearance and local diagnostics.
-- Unified editable software catalog and category folders. Corrected FastStone → Tools, K-Lite → Media, TeamViewer → Support.
-- Consistent, calmer hover and equal sizing/spacing for row info/privacy/edit controls.
-- New readable local activity-log viewer with search, error filtering and HTML export; raw JSONL is preserved.
-- Optional confirmed library-cleanup CMD launcher; GitHub issue form; source/build instructions and credits.
+Validation: **248 fixture checks**, a delayed query over five seconds, cancellation/budget checks, matching comparison between an actual mounted ISO and disk folder, and direct EXE startup from a separately generated read-only ISO on Windows 11. No driver/software installation or restore/reboot was performed. Complete original-matcher equivalence and the XP–11 device matrix remain unfinished.
 
-**Beta limitations:** not a complete port of the original matcher; special rules and online SQLite-index refresh remain incomplete. XP–11 and x86/x64 runtime validation is pending. Real driver/software installation, restore/reboot and public peer transport have not been validated. Screenshots use sample data and installation previews, not real installation evidence.
+**العربية:** إصلاح قراءة المكتبات على الأجهزة الأبطأ والـISO، ومسارات السجلات والتعرف على المكتبة بعد النقل، مع إعادة تصميم شاشة التحميل والخطأ. استبدل EXE داخل مجلد الأسطوانة ثم أعد إنشاء ISO؛ الصورة القديمة لا تتحدث تلقائيًا. النسخة تظل بيتا وتحتاج إلى استكمال اختبارات التوافق والتثبيت الفعلي.
 
-**العربية:** نسخة تجريبية عامة بواجهة حديثة وكتالوج برامج موحد وسجل نشاط مقروء. صُححت التصنيفات وأيقونات التعديل. يلزم فهرس ومكتبة DriverPack متوافقة خارج ملف التشغيل. لم يكتمل اختبار كل قواعد المحرك أو كل الأنظمة والتثبيت الفعلي. الصور توضيحية.
-
-Project UI/development/emblem: **Tarek Sadek · Diagoo1**. DriverPack and third-party rights remain with their owners. See the repository notices and validation page.
+UI, development and emblem: Tarek Sadek · Diagoo1. Original DriverPack and third-party rights remain with their owners.

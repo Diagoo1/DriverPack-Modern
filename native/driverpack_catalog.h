@@ -6,6 +6,8 @@
 #include <QStringList>
 #include <QElapsedTimer>
 #include <memory>
+#include <functional>
+#include <exception>
 struct sqlite3;
 namespace driverpack
 {
@@ -20,7 +22,7 @@ struct Match
 class Catalog
 {
   public:
-    explicit Catalog(const QString &file);
+    explicit Catalog(const QString &file, const std::function<void()> &checkpoint = std::function<void()>(), quint64 operationBudget = 50000000);
     ~Catalog();
     QVector<Match> find(const QString &hardwareId, const QString &system, int build, int limit = 256,
                         bool fallback = false, bool includeLowRank = false);
@@ -31,7 +33,10 @@ class Catalog
     bool m_supportDeviceClass = false;
     sqlite3 *m_db;
     QString m_path;
-    QElapsedTimer m_deadline;
+    std::function<void()> m_checkpoint;
+    std::exception_ptr m_checkpointError;
+    quint64 m_operations = 0, m_operationBudget;
+    bool m_budgetExceeded = false;
     static int interrupt(void *self);
     Catalog(const Catalog &) = delete;
     Catalog &operator=(const Catalog &) = delete;

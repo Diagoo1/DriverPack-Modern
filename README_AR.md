@@ -3,7 +3,7 @@
   <h1>درايفر باك مودرن</h1>
   <p><strong>مكتبتك الأوفلاين، بواجهة أوضح وتجربة ويندوز حديثة.</strong></p>
   <p>تصميم وتطوير <strong>طارق صادق · Diagoo1</strong></p>
-  <p><a href="https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.0">تنزيل النسخة التجريبية 0.22.0</a> · <a href="README.md">English</a> · <a href="docs/GALLERY.md">معرض الصور</a> · <a href="https://github.com/Diagoo1/DriverPack-Modern/issues/new?template=bug_report.yml">الإبلاغ عن مشكلة</a></p>
+  <p><a href="https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.1">تنزيل النسخة التجريبية 0.22.1</a> · <a href="README.md">English</a> · <a href="docs/GALLERY.md">معرض الصور</a> · <a href="https://github.com/Diagoo1/DriverPack-Modern/issues/new?template=bug_report.yml">الإبلاغ عن مشكلة</a></p>
 </div>
 
 ---
@@ -25,7 +25,7 @@
 <tr><td><img src="docs/screenshots/ar-dark/05-diagnostics.png" alt="تشخيص الجهاز"></td><td><img src="docs/screenshots/ar-light/10-activity-log.png" alt="سجل النشاط"></td></tr>
 </table>
 
-[عرض الصور الـ48 كاملة ←](docs/GALLERY.md)
+[عرض الصور الـ52 كاملة ←](docs/GALLERY.md)
 
 ## المزايا
 

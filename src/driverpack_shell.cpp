@@ -10,6 +10,7 @@
 #include "hardware_report.h"
 #include "online_worker.h"
 #include "portable_library.h"
+#include "offline_paths.h"
 #include "support_report.h"
 #include "system_profile.h"
 #include "theme.h"
@@ -125,6 +126,23 @@ class ClickRow : public QFrame
                 clicked(); // Restore the first-click selection before opening information.
             doubled();
         }
+    }
+};
+class LibraryLoadingPage : public QWidget
+{
+public: explicit LibraryLoadingPage(QWidget *parent=0):QWidget(parent) {}
+protected:
+    void paintEvent(QPaintEvent *) Q_DECL_OVERRIDE
+    {
+        QPainter painter(this);painter.setRenderHint(QPainter::Antialiasing);
+        painter.setClipPath(windowClip(this,18));
+        const bool dark=Theme::isDark(this);
+        QLinearGradient fill(rect().topLeft(),rect().bottomRight());
+        fill.setColorAt(0,QColor(dark?"#102f42":"#075572"));
+        fill.setColorAt(1,QColor(dark?"#0c5058":"#078c87"));
+        painter.fillRect(rect(),fill);
+        painter.setPen(QPen(QColor(139,237,226,dark?13:20),1));painter.setBrush(Qt::NoBrush);
+        for(int n=0;n<3;++n) { const int radius=150+n*65;painter.drawEllipse(QPointF(width()-35,35),radius,radius); }
     }
 };
 class ProjectTableHeader : public QHeaderView
@@ -1184,7 +1202,9 @@ DriverPackShell::DriverPackShell(bool demo, bool capture, QWidget *parent)
     if (arg >= 0)
         m_library = QDir(args.value(arg + 1)).absolutePath();
     const QString custom = m_settings->value(QStringLiteral("driverpack/library")).toString();
-    if (arg < 0 && !custom.isEmpty())
+    const QString owner = m_settings->value(QStringLiteral("driverpack/libraryOwner")).toString();
+    if (arg < 0 && !custom.isEmpty() && DriverPackLibrary::locate(custom).valid() &&
+        (owner == QCoreApplication::applicationDirPath() || !DriverPackLibrary::locate(m_library).valid()))
         m_library = custom;
     m_engine = new EngineBridge(this);
     m_catalog = new DriverCatalog(this);
@@ -1244,11 +1264,11 @@ DriverPackShell::DriverPackShell(bool demo, bool capture, QWidget *parent)
                         button->show();
                     m_root->setCurrentWidget(m_loading);
                     emit workspaceReady();
-                    m_loadText->setText(t("DriverPack could not finish reading this library.\n%1",
-                                          "تعذّرت قراءة مكتبة درايفر باك.\n%1")
-                                            .arg(e));
-                    m_loadBar->setRange(0, 100);
-                    m_loadBar->setValue(0);
+                    m_header->show();
+                    m_loadHeading->setText(t("We couldn't read this library", "تعذّرت قراءة المكتبة"));
+                    m_loadText->setText(t("Check that the index and driver folders are available, then retry. The technical details below can be copied for a bug report.", "تأكد من توفر الفهرس ومجلد التعريفات ثم أعد المحاولة. يمكنك نسخ التفاصيل التقنية بالأسفل لإرفاقها ببلاغ."));
+                    m_loadDetail->setPlainText(e);m_loadDetail->show();
+                    m_loadBar->hide();
                 }
             });
     connect(m_engine, &EngineBridge::toolFinished, this,
@@ -1630,60 +1650,52 @@ void DriverPackShell::rebuild()
             });
     connect(titlebar, &TitleBar::closeRequested, this, [this]() { close(); });
     all->addWidget(m_header);
-    m_header->setVisible(!m_initial);
+    m_header->show();
     m_root = new QStackedWidget(this);
     all->addWidget(m_root, 1);
-    m_loading = new QWidget;
+    m_loading = new LibraryLoadingPage;
     m_loading->setObjectName(QStringLiteral("drpLoading"));
     auto loading = new QVBoxLayout(m_loading);
-    loading->setContentsMargins(24, 24, 24, 24);
-    loading->addStretch();
-    auto loadCard = new AccentCard(m_loading);
-    loadCard->setStyleSheet(QStringLiteral("QLabel{color:#e9fbfc;}"));
-    loadCard->setObjectName(QStringLiteral("drpCard"));
-    loadCard->setMaximumWidth(580);
-    auto cardBox = new QVBoxLayout(loadCard);
-    cardBox->setContentsMargins(32, 32, 32, 28);
-    cardBox->setSpacing(20);
-    auto loadingLogo = copy(QStringLiteral("DriverPack Modern"), loadCard, "title");
-    loadingLogo->setAlignment(Qt::AlignCenter);
-    cardBox->addWidget(loadingLogo);
-    m_loadText =
-        copy(t("Reading your computer and the DriverPack library…", "جارٍ قراءة جهازك ومكتبة درايفر باك…"),
-             loadCard, "largeCaption");
-    m_loadText->setAlignment(Qt::AlignCenter);
-    cardBox->addWidget(m_loadText);
-    m_loadBar = new QProgressBar(loadCard);
-    m_loadBar->setRange(0, 0);
-    m_loadBar->setMinimumWidth(420);
-    m_loadBar->setMaximumWidth(480);
-    cardBox->addWidget(m_loadBar, 0, Qt::AlignHCenter);
-    auto retry = action(t("Scan again", "إعادة الفحص"), loadCard);
-    retry->setObjectName(QStringLiteral("loadingRecovery"));
-    retry->hide();
-    connect(retry, &QPushButton::clicked, this, [this]() { beginScan(); });
-    cardBox->addWidget(retry, 0, Qt::AlignHCenter);
-    auto browse = action(t("Choose DriverPack library…", "اختيار مكتبة درايفر باك…"), loadCard);
-    browse->setObjectName(QStringLiteral("loadingRecovery"));
-    browse->hide();
-    connect(browse, &QPushButton::clicked, this, [this]() { chooseLibrary(); });
-    cardBox->addWidget(browse, 0, Qt::AlignHCenter);
-
-    auto credit = copy(t("Designed by Tarek Sadek", "تصميم وتطوير طارق صادق"), loadCard, "signature");
-    credit->setObjectName(QStringLiteral("loadingCredit"));
-    credit->setStyleSheet(
-        QStringLiteral("font-size:13px;color:#d5f4f4;background:transparent;border:0;padding:8px;"));
-    credit->setMinimumWidth(320);
-    credit->setAlignment(Qt::AlignCenter);
-    credit->setWordWrap(false);
-    cardBox->addWidget(credit, 0, Qt::AlignHCenter);
-    loading->addWidget(loadCard, 0, Qt::AlignHCenter);
-    loading->addStretch();
-    auto splashShadow = new QGraphicsDropShadowEffect(loadCard);
-    splashShadow->setBlurRadius(20);
-    splashShadow->setOffset(0, 4);
-    splashShadow->setColor(QColor(0, 0, 0, 35));
-    loadCard->setGraphicsEffect(splashShadow);
+    loading->setContentsMargins(38,28,38,24);loading->setSpacing(18);loading->addStretch(2);
+    // Layout-only container: one full-window canvas, without a second painted card.
+    auto content = new QWidget(m_loading);content->setObjectName(QStringLiteral("libraryLoadContent"));
+    content->setMaximumWidth(740);content->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred);
+    auto body = new QVBoxLayout(content);body->setContentsMargins(12,0,12,0);body->setSpacing(20);body->setSizeConstraint(QLayout::SetMinimumSize);
+    auto icon = new QLabel(content);icon->setAlignment(Qt::AlignCenter);
+    icon->setPixmap(QIcon(QStringLiteral(":/sdio/assets/driverpack-emblem.png")).pixmap(80,80));
+    body->addWidget(icon);
+    m_loadHeading = copy(t("Preparing your library", "جارٍ تجهيز المكتبة"),content);
+    m_loadHeading->setAlignment(Qt::AlignCenter);m_loadHeading->setWordWrap(true);
+    m_loadHeading->setStyleSheet(QStringLiteral("font-size:32px;font-weight:600;color:#f1ffff;background:transparent;"));
+    body->addWidget(m_loadHeading);
+    m_loadText = copy(t("Reading your computer and matching driver packages…", "جارٍ قراءة جهازك ومطابقة حزم التعريفات…"),content);
+    m_loadText->setAlignment(Qt::AlignCenter);m_loadText->setWordWrap(true);
+    m_loadText->setStyleSheet(QStringLiteral("font-size:17px;color:#c8e8ed;background:transparent;"));body->addWidget(m_loadText);
+    m_loadBar = new RoundedActivityBar(content);m_loadBar->setRange(0,0);
+    m_loadBar->setTextVisible(false);m_loadBar->setFixedHeight(12);body->addWidget(m_loadBar);
+    m_loadDetail = new QPlainTextEdit(content);m_loadDetail->setReadOnly(true);
+    m_loadDetail->setFixedHeight(100);
+    m_loadDetail->setStyleSheet(QStringLiteral("QPlainTextEdit{background:rgba(4,30,43,100);color:#d9f3f4;border:1px solid rgba(156,225,226,55);border-radius:14px;padding:14px;font-size:14px;selection-background-color:#087f84;selection-color:white;}"));
+    m_loadDetail->hide();body->addWidget(m_loadDetail);
+    auto commands = new QHBoxLayout;commands->setSpacing(16);
+    auto retry = action(t("Scan again", "إعادة الفحص"),content);
+    auto browse = action(t("Choose library…", "اختيار المكتبة…"),content);
+    for(auto button:{retry,browse}) {
+        button->setObjectName(QStringLiteral("loadingRecovery"));button->setProperty("projectAction",false);
+        button->setMinimumHeight(48);button->setMinimumWidth(190);button->hide();
+        button->setStyleSheet(button==retry
+            ? QStringLiteral("QPushButton{background:#00aaa4;color:white;border:1px solid #20bdb4;border-radius:14px;padding:10px 24px;font-size:16px;font-weight:600;} QPushButton:hover{background:#09b8ad;} QPushButton:pressed{background:#008b87;}")
+            : QStringLiteral("QPushButton{background:rgba(255,255,255,12);color:#e8ffff;border:1px solid rgba(164,232,234,110);border-radius:14px;padding:10px 24px;font-size:16px;} QPushButton:hover{background:rgba(255,255,255,28);border-color:#a2e9e5;} QPushButton:pressed{background:rgba(255,255,255,40);}"));
+        commands->addWidget(button,1);
+    }
+    connect(retry,&QPushButton::clicked,this,[this](){beginScan();});
+    connect(browse,&QPushButton::clicked,this,[this](){chooseLibrary();});body->addSpacing(12);body->addLayout(commands);
+    auto centered = new QHBoxLayout;centered->addStretch(1);centered->addWidget(content,100);centered->addStretch(1);
+    loading->addLayout(centered);loading->addStretch(2);
+    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.1 Beta", "تصميم وتطوير · طارق صادق  |  0.22.1 بيتا"),m_loading);
+    credit->setObjectName(QStringLiteral("loadingCredit"));credit->setAlignment(Qt::AlignCenter);
+    credit->setStyleSheet(QStringLiteral("font-size:13px;color:#b9e2e6;background:transparent;padding:8px;"));
+    loading->addWidget(credit);
     m_root->addWidget(m_loading);
     m_start = new QWidget;
     m_start->setObjectName(QStringLiteral("drpStart"));
@@ -1748,7 +1760,7 @@ void DriverPackShell::loadSoftware()
 {
     try
     {
-        m_programs = DriverPackSoftware::load(m_library);
+        m_programs = DriverPackSoftware::load(m_library, false, !DriverPackLibrary::readOnly(m_library));
         if(m_demo)for(auto &program:m_programs){program.installed=false;program.localPath.clear();}
         QSet<QString> eligible;
         for (const auto &p : m_programs)
@@ -1767,7 +1779,10 @@ void DriverPackShell::applyOptions()
     sdiomodern::Paths p;
     p.drivers = QDir(m_library).filePath(QStringLiteral("drivers")).toStdWString();
     p.indexes = QDir(m_library).filePath(QStringLiteral("index")).toStdWString();
-    p.logDirectory = QDir(m_library).filePath(QStringLiteral("logs")).toStdWString();
+    p.logDirectory = DriverPackLibrary::logDirectory(m_library).toStdWString();
+    setProperty("resolvedLibrary",m_library);
+    setProperty("libraryReadOnly",DriverPackLibrary::readOnly(m_library));
+    setProperty("operationLogDirectory",QString::fromStdWString(p.logDirectory));
     p.noLog = !m_settings->value(QStringLiteral("driverpack/enableLogging"), true).toBool();
     p.keepTempFiles = !m_settings->value(QStringLiteral("driverpack/removeTemp"), false).toBool();
     m_engine->setSessionOptions(p);
@@ -1777,6 +1792,8 @@ void DriverPackShell::beginScan()
     if (busy())
         return;
     m_error.clear();
+    m_loadHeading->setText(t("Preparing your library", "جارٍ تجهيز المكتبة"));
+    m_loadDetail->clear();m_loadDetail->hide();m_loadBar->show();
     if (!QFileInfo(QDir(m_library).filePath(QStringLiteral("index/db.sqlite"))).isFile())
     {
         for (auto button : m_loading->findChildren<QPushButton *>(QStringLiteral("loadingRecovery")))
@@ -1784,7 +1801,8 @@ void DriverPackShell::beginScan()
         m_root->setCurrentWidget(m_loading);
         emit workspaceReady();
         m_header->show();
-        m_loadBar->setRange(0, 100);
+        m_loadBar->hide();
+        m_loadHeading->setText(t("Choose your offline library", "اختر مكتبتك الأوفلاين"));
         m_loadText->setText(t("Choose a DriverPack offline library containing index/db.sqlite and "
                               "drivers.\nNo library is bundled inside this executable.",
                               "اختر مكتبة درايفر باك أوفلاين التي تحتوي index/db.sqlite ومجلد drivers.\nملف "
@@ -4828,6 +4846,7 @@ void DriverPackShell::restoreDefaults()
             key.startsWith(QStringLiteral("installation/")) || key.startsWith(QStringLiteral("offline/")))
             m_settings->remove(key);
     m_settings->setValue(QStringLiteral("driverpack/library"), m_library);
+    m_settings->setValue(QStringLiteral("driverpack/libraryOwner"), QCoreApplication::applicationDirPath());
     m_showInstalled = true;
     m_additional = false;
     rebuild();
@@ -4869,6 +4888,7 @@ void DriverPackShell::chooseLibrary()
     }
     m_library = candidate;
     m_settings->setValue(QStringLiteral("driverpack/library"), candidate);
+    m_settings->setValue(QStringLiteral("driverpack/libraryOwner"), QCoreApplication::applicationDirPath());
     m_programSelection.clear();
     m_remote.clear();
     loadSoftware();
@@ -6072,6 +6092,13 @@ int DriverPackShell::capture(const QString &folder)
     Splash splash;
     splash.setProgress(38);
     splash.grab().save(QDir(folder).filePath(QStringLiteral("startup-loading.png")));
+    m_root->setCurrentWidget(m_loading);events(80);
+    grab().save(QDir(folder).filePath(QStringLiteral("library-reading.png")));
+    const QString errorFixture = QStringLiteral("Read-only media diagnostic preview. No operation was performed.");
+    QMetaObject::invokeMethod(m_engine,"engineError",Qt::DirectConnection,Q_ARG(QString,errorFixture));events(100);
+    if (!m_loadBar->isHidden() || m_loadDetail->toPlainText()!=errorFixture) return 157;
+    grab().save(QDir(folder).filePath(QStringLiteral("library-error.png")));
+    if(QCoreApplication::arguments().contains(QStringLiteral("--capture-library-states")))return 0;
     beginScan();
     for (int i = 0; i < 500 && m_engine->isBusy(); ++i)
         events(40);

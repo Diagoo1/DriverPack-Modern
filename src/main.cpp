@@ -62,7 +62,7 @@ int main(int argc, char **argv)
     {
         if (std::strcmp(argv[i], "--version") == 0)
         {
-            fprintf(stdout, "DriverPack Modern 0.22.0 Beta | UI by Tarek Sadek\n");
+            fprintf(stdout, "DriverPack Modern 0.22.1 Beta | UI by Tarek Sadek\n");
             return 0;
         }
         if (std::strcmp(argv[i], "--scan-report") == 0)
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
     // Verifiable release identity: scripts can reject stale executables.
     if (app.arguments().contains(QStringLiteral("--version")))
     {
-        fprintf(stdout, "DriverPack Modern 0.22.0 Beta | UI by Tarek Sadek\n");
+        fprintf(stdout, "DriverPack Modern 0.22.1 Beta | UI by Tarek Sadek\n");
         fflush(stdout);
         return 0;
     }
@@ -159,11 +159,12 @@ int main(int argc, char **argv)
 
     const int liveCapture = args.indexOf(QStringLiteral("--capture-live"));
     const int previewCapture = args.indexOf(QStringLiteral("--capture-preview"));
-    const int capture = liveCapture >= 0 ? liveCapture : previewCapture;
+    const int stateCapture = args.indexOf(QStringLiteral("--capture-library-states"));
+    const int capture = stateCapture >= 0 ? stateCapture : liveCapture >= 0 ? liveCapture : previewCapture;
     DriverPackShell window(demo, capture >= 0||gallery>=0);
     instance.registerWindow(&window);
     const QRect usable = QApplication::desktop()->availableGeometry(&window);
-    window.resize(qMin(640, usable.width() - 24), qMin(440, usable.height() - 24));
+    window.resize(qMin(1000, usable.width() - 24), qMin(680, usable.height() - 24));
     window.move(usable.center() - window.rect().center());
     if(gallery>=0&&gallery+1<args.size())return window.gallery(args[gallery+1]);
     if (capture >= 0 && capture + 1 < args.size())
@@ -229,6 +230,9 @@ int main(int argc, char **argv)
                                     result.insert(QStringLiteral("splashProgress"),
                                                   guard ? guard->progress() : 0);
                                     result.insert(QStringLiteral("installationRequested"), false);
+                                    result.insert(QStringLiteral("library"),window.property("resolvedLibrary").toString());
+                                    result.insert(QStringLiteral("libraryReadOnly"),window.property("libraryReadOnly").toBool());
+                                    result.insert(QStringLiteral("operationLogDirectory"),window.property("operationLogDirectory").toString());
                                     QSaveFile file(probe);
                                     if (file.open(QIODevice::WriteOnly))
                                     {

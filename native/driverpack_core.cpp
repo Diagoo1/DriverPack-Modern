@@ -286,7 +286,13 @@ Snapshot OriginCore::scan(const Paths &paths, const EventSink &sink)
     m->database = QFileInfo(database).canonicalFilePath();
     ReadLock catalogLock(m->database);
     m->databaseStamp = catalogLock.stamp();
-    driverpack::Catalog catalog(m->database);
+    QElapsedTimer queryHeartbeat; queryHeartbeat.start();
+    driverpack::Catalog catalog(m->database, [&]() {
+        if (queryHeartbeat.elapsed() >= 250) {
+            event(sink, Stage::Match, L"Reading matching driver records from the library.");
+            queryHeartbeat.restart();
+        }
+    });
     Snapshot snapshot;
     snapshot.generation = generation;
     snapshot.capabilities = capabilities();

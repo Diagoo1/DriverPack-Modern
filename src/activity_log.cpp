@@ -1,4 +1,5 @@
 #include "activity_log.h"
+#include "offline_paths.h"
 #include "appearance.h"
 #include "theme.h"
 #include "ui_language.h"
@@ -111,7 +112,7 @@ void show(QWidget *parent, const QString &library, bool arabic, bool preview)
             }
         }
         else
-            records = readRecent(QDir(library).filePath(QStringLiteral("logs/native-events.jsonl")));
+            records = readRecent(QDir(DriverPackLibrary::logDirectory(library)).filePath(QStringLiteral("native-events.jsonl")));
         const QStringList stages = {tr("Scan", "فحص"),
                                     tr("Indexes", "الفهارس"),
                                     tr("Matching", "المطابقة"),

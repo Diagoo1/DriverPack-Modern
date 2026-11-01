@@ -15,6 +15,7 @@ class QStackedWidget;
 class QVBoxLayout;
 class QHBoxLayout;
 class QLabel;
+class QPlainTextEdit;
 class QPushButton;
 class QAbstractButton;
 class QProgressBar;
@@ -146,6 +147,8 @@ class DriverPackShell : public QWidget
     QStackedWidget *m_root, *m_pages;
     QWidget *m_header, *m_side, *m_start, *m_expert, *m_loading, *m_install, *m_final;
     QHBoxLayout *m_headerLayout;
+    QPlainTextEdit *m_loadDetail;
+    QLabel *m_loadHeading;
     QLabel *m_brand, *m_loadText, *m_installText, *m_elapsedText;
     QProgressBar *m_loadBar, *m_installBar;
     QTreeWidget *m_installItems;

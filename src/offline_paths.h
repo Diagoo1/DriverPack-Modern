@@ -3,8 +3,26 @@
 #include <QString>
 #include <QDir>
 #include <QFileInfo>
+#include <QStorageInfo>
+#include <QStandardPaths>
+#include <QCryptographicHash>
 namespace DriverPackLibrary
 {
+inline bool readOnly(const QString &library)
+{
+    const QStorageInfo volume(library);
+    return volume.isReadOnly() || !QFileInfo(library).isWritable();
+}
+inline QString logDirectory(const QString &library)
+{
+    if (!readOnly(library)) return QDir(library).filePath(QStringLiteral("logs"));
+    const QString fixture = QString::fromUtf8(qgetenv("DRIVERPACK_MODERN_TEST_SETTINGS"));
+    const QString base = !fixture.isEmpty() && QDir::isAbsolutePath(fixture)
+        ? QDir(QFileInfo(fixture).absolutePath()).filePath(QStringLiteral("runtime"))
+        : QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    const QString key = QString::fromLatin1(QCryptographicHash::hash(QFileInfo(library).absoluteFilePath().toUtf8(), QCryptographicHash::Sha1).toHex());
+    return QDir(base).filePath(QStringLiteral("libraries/") + key + QStringLiteral("/logs"));
+}
 struct Location
 {
     QString drivers, database;

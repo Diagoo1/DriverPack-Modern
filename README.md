@@ -4,7 +4,7 @@
   <p><strong>Your offline library. A clearer Windows experience.</strong></p>
   <p>A native desktop interface for DriverPack libraries — without the original advertising interface.<br>Designed and developed by <strong>Tarek Sadek · Diagoo1</strong></p>
   <p>
-    <a href="https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.0"><img src="https://img.shields.io/badge/Download-0.22.0_Beta-008D86?style=for-the-badge" alt="Download Beta"></a>
+    <a href="https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.1"><img src="https://img.shields.io/badge/Download-0.22.1_Beta-008D86?style=for-the-badge" alt="Download Beta"></a>
     <img src="https://img.shields.io/badge/License-GPL--3.0-075266?style=for-the-badge" alt="GPL 3">
     <img src="https://img.shields.io/badge/Desktop-C%2B%2B_%2F_Qt-075266?style=for-the-badge" alt="C++ and Qt">
   </p>
@@ -29,7 +29,7 @@ English and Arabic · Light and dark · **Illustrative sample data**. Installati
 <tr><td><img src="docs/screenshots/en-light/05-diagnostics.png" alt="Hardware diagnostics"></td><td><img src="docs/screenshots/ar-dark/07-settings.png" alt="Arabic settings"></td></tr>
 </table>
 
-[Browse all 48 screenshots →](docs/GALLERY.md)
+[Browse all 52 screenshots →](docs/GALLERY.md)
 
 ## What is included
 
@@ -48,7 +48,7 @@ No software is selected automatically. Original JavaScript, advertising hooks an
 
 ## Get started
 
-1. Download **DriverPackModern.exe** from the [Beta release](https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.0).
+1. Download **DriverPackModern.exe** from the [Beta release](https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.1).
 2. Place it beside a compatible DriverPack library, keeping this structure:
 
 ```text

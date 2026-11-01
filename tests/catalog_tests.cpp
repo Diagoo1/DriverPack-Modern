@@ -5,6 +5,8 @@
 #include <QTemporaryDir>
 #include <QFile>
 #include <QSet>
+#include <QThread>
+#include <QCryptographicHash>
 #include "../native/sqlite/sqlite3.h"
 #include <cstdio>
 #include <stdexcept>
@@ -71,6 +73,28 @@ int main(int argc, char **argv)
                           QDir(directory).filePath(QStringLiteral("unsupported.sqlite")));
                   }),
               "unsupported schemas are rejected");
+        QTemporaryDir slowFixture;
+        const QString moved = QDir(slowFixture.path()).filePath(QString::fromUtf8("مكتبة منقولة index.sqlite"));
+        check(QFile::copy(QDir(directory).filePath(QStringLiteral("catalog.sqlite")),moved), "relocated unicode catalog copied");
+        sqlite3 *slowDb = 0;
+        check(sqlite3_open(moved.toUtf8().constData(), &slowDb)==SQLITE_OK, "open isolated slow-media fixture");
+        for(int i=0;i<12;++i) check(sqlite3_exec(slowDb,"INSERT INTO Usable SELECT * FROM Usable",0,0,0)==SQLITE_OK,"expand isolated query work");
+        sqlite3_close(slowDb);
+        QFile baseline(moved);baseline.open(QIODevice::ReadOnly);const QByteArray before = QCryptographicHash::hash(baseline.readAll(),QCryptographicHash::Sha256);baseline.close();
+        check(QFile::setPermissions(moved,QFileDevice::ReadOwner|QFileDevice::ReadUser|QFileDevice::ReadGroup|QFileDevice::ReadOther),"read-only fixture permissions");
+        int checkpoints=0;
+        driverpack::Catalog slow(moved,[&](){if(++checkpoints==1)QThread::msleep(5100);});
+        check(slow.find(id,QStringLiteral("10.0x64"),200).size()==256 && checkpoints>0,"slow read above old five-second wall limit succeeds");
+        driverpack::Catalog cancelled(moved,[](){throw std::runtime_error("cancelled by test");});
+        bool cancelledExactly=false;
+        try { cancelled.find(id,QStringLiteral("10.0x64"),200); }
+        catch(const std::exception &e) { cancelledExactly=QString::fromUtf8(e.what())==QStringLiteral("cancelled by test"); }
+        check(cancelledExactly,"cancellation propagates safely outside the SQLite C callback");
+        driverpack::Catalog bounded(moved,std::function<void()>(),2000);
+        check(rejected([&](){bounded.find(id,QStringLiteral("10.0x64"),200);}),"instruction budget still stops expensive queries");
+        baseline.open(QIODevice::ReadOnly);
+        check(QCryptographicHash::hash(baseline.readAll(),QCryptographicHash::Sha256)==before,"read-only relocated catalog remains unchanged");
+        baseline.close();
         driverpack::Match row = rows[0];
         const QByteArray deviceKey = QByteArray::fromHex("32d59b");
         check(driverpack::originalGroupKey(deviceKey, QByteArray::fromHex("c9fbd1")) ==

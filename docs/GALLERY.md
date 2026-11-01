@@ -119,3 +119,11 @@ All images use illustrative sample data. Installation screens are layout preview
 <td><a href="screenshots/ar-dark/12-installation-preview.png"><img src="screenshots/ar-dark/12-installation-preview.png" alt="العربية · داكن 12-installation-preview"></a><br>12-installation-preview</td>
 </tr>
 </table>
+
+## Full-window library reading and recovery · 0.22.1
+
+Technical details below are a diagnostic preview, not an actual installation failure.
+
+<table><tr><td><img src="screenshots/recovery/library-reading.png" alt="Full-window library reading"></td><td><img src="screenshots/recovery/library-error.png" alt="Copyable error details and recovery buttons"></td></tr></table>
+
+<table><tr><td><img src="screenshots/recovery/library-reading-ar.png" alt="صفحة التحميل كاملة بالعربية"></td><td><img src="screenshots/recovery/library-error-ar.png" alt="صفحة استرداد الأخطاء بالعربية"></td></tr></table>
