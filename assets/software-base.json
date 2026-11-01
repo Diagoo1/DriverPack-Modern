@@ -1,0 +1,440 @@
+{
+  "format": "DriverPackModernSoftwareCatalog",
+  "schema": 1,
+  "programs": [
+    {
+      "id": "1",
+      "name": "7-Zip",
+      "url": "http://dl.drp.su/soft/7-Zip.exe",
+      "version": "19.00",
+      "publisher": "Igor Pavlov",
+      "category": "Archiver",
+      "registry": "HKCU\\Software\\7-Zip\\Path",
+      "rating": 5
+    },
+    {
+      "id": "3",
+      "name": "Opera Browser",
+      "url": "http://dl.drp.su/soft/OperaBlink64.exe",
+      "version": "64.0.3417.73",
+      "publisher": "Opera Software",
+      "category": "Browser",
+      "registry": "HKCU\\Software\\Opera Software\\UUID",
+      "rating": 5
+    },
+    {
+      "id": "4",
+      "name": "Opera Browser",
+      "url": "http://dl.drp.su/soft/OperaBlink.exe",
+      "version": "64.0.3417.73",
+      "publisher": "Opera Software",
+      "category": "Browser",
+      "registry": "HKCU\\Software\\Opera Software\\UUID",
+      "rating": 5
+    },
+    {
+      "id": "203",
+      "name": "Opera Browser",
+      "url": "http://dl.drp.su/soft/Opera64cis_woGoogle.exe",
+      "version": "64.0.3417.73",
+      "publisher": "Opera Software",
+      "category": "Browser",
+      "registry": "HKCU\\Software\\Opera Software\\UUID",
+      "rating": 5
+    },
+    {
+      "id": "204",
+      "name": "Opera Browser",
+      "url": "http://dl.drp.su/soft/Opera86cis_woGoogle.exe",
+      "version": "64.0.3417.73",
+      "publisher": "Opera Software",
+      "category": "Browser",
+      "registry": "HKCU\\Software\\Opera Software\\UUID",
+      "rating": 5
+    },
+    {
+      "id": "5",
+      "name": "Opera Browser",
+      "url": "http://dl.drp.su/soft/OperaXP.exe",
+      "version": "36.0.2130.32",
+      "publisher": "Opera Software",
+      "category": "Browser",
+      "registry": "HKCU\\Software\\Opera Software\\Last Stable Install Path",
+      "rating": 5
+    },
+    {
+      "id": "10",
+      "name": "PDF-XChange Viewer",
+      "url": "http://dl.drp.su/soft/PDFViewer.exe",
+      "version": "2.5.322.10",
+      "publisher": "Tracker Software Products Ltd",
+      "category": "Viewer",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{A278382D-4F1B-4D47-9885-8523F7261E8D}_is1\\DisplayName",
+      "rating": 4
+    },
+    {
+      "id": "11",
+      "name": "K-Lite Codec Pack",
+      "url": "http://dl.drp.su/soft/K-Lite.exe",
+      "version": "13.8.2",
+      "publisher": "KLCP",
+      "category": "Codec",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\KLiteCodecPack_is1\\DisplayName",
+      "rating": 5
+    },
+    {
+      "id": "12",
+      "name": "Skype",
+      "url": "http://dl.drp.su/soft/SkypeXP.exe",
+      "version": "7.36.0.101",
+      "publisher": "Skype Technologies S.A.",
+      "category": "Messenger",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{FC965A47-4839-40CA-B618-18F486F042C6}\\DisplayName",
+      "rating": 4
+    },
+    {
+      "id": "13",
+      "name": "Skype",
+      "url": "http://dl.drp.su/soft/Skype.exe",
+      "version": "7.41.0.101",
+      "publisher": "Skype Technologies S.A.",
+      "category": "Messenger",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{FC965A47-4839-40CA-B618-18F486F042C6}\\DisplayName",
+      "rating": 4
+    },
+    {
+      "id": "16",
+      "name": "uTorrent",
+      "url": "http://dl.drp.su/soft/uTorrent.exe",
+      "version": "3.5.3.44358",
+      "publisher": "BitTorrent, Inc.",
+      "category": "Internet",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\uTorrent\\DisplayName",
+      "rating": 4
+    },
+    {
+      "id": "18",
+      "name": "PotPlayer",
+      "url": "http://dl.drp.su/soft/PotPlayer.exe",
+      "version": "1.7.21149",
+      "publisher": "Kakao Corporation",
+      "category": "Player",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PotPlayer\\DisplayName",
+      "rating": 5
+    },
+    {
+      "id": "20",
+      "name": "AIMP",
+      "url": "http://dl.drp.su/soft/AIMP.exe",
+      "version": "4.60.2180",
+      "publisher": "Artem Izmaylov",
+      "category": "Player",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AIMP\\DisplayName",
+      "rating": 5
+    },
+    {
+      "id": "66401",
+      "name": "Firefox Browser",
+      "url": "http://dl.drp.su/soft/Firefox64ru.exe",
+      "version": "60.3.0",
+      "publisher": "Mozilla Corporation",
+      "category": "Browser",
+      "registry": "HKLM\\Software\\mozilla.org\\Mozilla\\CurrentVersion",
+      "rating": 5
+    },
+    {
+      "id": "66402",
+      "name": "Firefox Browser",
+      "url": "http://dl.drp.su/soft/Firefox64en.exe",
+      "version": "60.3.0",
+      "publisher": "Mozilla Corporation",
+      "category": "Browser",
+      "registry": "HKLM\\Software\\mozilla.org\\Mozilla\\CurrentVersion",
+      "rating": 5
+    },
+    {
+      "id": "68601",
+      "name": "Firefox Browser",
+      "url": "http://dl.drp.su/soft/Firefox86ru.exe",
+      "version": "60.3.0",
+      "publisher": "Mozilla Corporation",
+      "category": "Browser",
+      "registry": "HKLM\\Software\\mozilla.org\\Mozilla\\CurrentVersion",
+      "rating": 5
+    },
+    {
+      "id": "68602",
+      "name": "Firefox Browser",
+      "url": "http://dl.drp.su/soft/Firefox86en.exe",
+      "version": "60.3.0",
+      "publisher": "Mozilla Corporation",
+      "category": "Browser",
+      "registry": "HKLM\\Software\\mozilla.org\\Mozilla\\CurrentVersion",
+      "rating": 5
+    },
+    {
+      "id": "21",
+      "name": "FastStone Image Viewer",
+      "url": "http://dl.drp.su/soft/FSImage.exe",
+      "version": "7.5",
+      "publisher": "FastStone Soft",
+      "category": "ImageViewer",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\FastStone Image Viewer\\DisplayName",
+      "rating": 4
+    },
+    {
+      "id": "22",
+      "name": "TeamViewer",
+      "url": "http://dl.drp.su/soft/TeamViewer.exe",
+      "version": "15.5.3",
+      "publisher": "TeamViewer GmbH",
+      "category": "Support",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\TeamViewer\\DisplayName",
+      "rating": 5
+    },
+    {
+      "id": "23",
+      "name": "AOMEI Backupper",
+      "url": "http://dl.drp.su/soft/Backupper.exe",
+      "version": "3.5",
+      "publisher": "AOMEI Technology Co., Ltd.",
+      "category": "Backup",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{A83692F5-3E9B-4E95-9E7E-B5DF5536C09F}_is1\\DisplayName",
+      "rating": 5
+    },
+    {
+      "id": "28",
+      "name": "Avast Free Antivirus",
+      "url": "http://dl.drp.su/soft/AvastAntivirusA.exe",
+      "version": "12.3.2280",
+      "publisher": "AVAST Software",
+      "category": "Antivirus",
+      "registry": "HKLM\\SOFTWARE\\AVAST Software\\Avast\\Version",
+      "rating": 5
+    },
+    {
+      "id": "29",
+      "name": "Avast Free Antivirus",
+      "url": "http://dl.drp.su/soft/AvastAntivirusWorldwideA.exe",
+      "version": "12.3.2280",
+      "publisher": "AVAST Software",
+      "category": "Antivirus",
+      "registry": "HKLM\\SOFTWARE\\AVAST Software\\Avast\\Version",
+      "rating": 5
+    },
+    {
+      "id": "30",
+      "name": "360 Total Security",
+      "url": "http://dl.drp.su/soft/360tsNew.exe",
+      "version": "10.2.0.1175",
+      "publisher": "Qihoo 360 Software",
+      "category": "Antivirus",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\360TotalSecurity\\UninstallString",
+      "rating": 5
+    },
+    {
+      "id": "40",
+      "name": "WinRAR (English)",
+      "url": "http://dl.drp.su/soft/WinRARx86Eng.exe",
+      "version": "5.61",
+      "publisher": "Alexander Roshal",
+      "category": "Archiver",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WinRAR archiver\\DisplayName",
+      "rating": 4
+    },
+    {
+      "id": "41",
+      "name": "WinRAR (Russian)",
+      "url": "http://dl.drp.su/soft/WinRARx86Rus.exe",
+      "version": "5.61",
+      "publisher": "Alexander Roshal",
+      "category": "Archiver",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WinRAR archiver\\DisplayName",
+      "rating": 4
+    },
+    {
+      "id": "42",
+      "name": "WinRAR (Portuguese)",
+      "url": "http://dl.drp.su/soft/WinRARx86Br.exe",
+      "version": "5.61",
+      "publisher": "Alexander Roshal",
+      "category": "Archiver",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WinRAR archiver\\DisplayName",
+      "rating": 4
+    },
+    {
+      "id": "71",
+      "name": "DirectX 9.0c",
+      "url": "http://dl.drp.su/soft/DirectX.exe",
+      "version": "9.0c",
+      "publisher": "Microsoft Corporation",
+      "category": "Drivers",
+      "rating": 5
+    },
+    {
+      "id": "72",
+      "name": "Microsoft Visual C++",
+      "url": "http://dl.drp.su/soft/VisualCplus.exe",
+      "version": "2005-2020",
+      "publisher": "Microsoft Corporation",
+      "category": "Drivers",
+      "registry": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{F0C3E5D1-1ADE-321E-8167-68EF0DE699A5}\\DisplayName",
+      "rating": 5
+    },
+    {
+      "id": "73",
+      "name": "System Libraries",
+      "url": "http://dl.drp.su/soft/RuntimePack.exe",
+      "version": "2020.04.18",
+      "publisher": "Microsoft Corporation",
+      "category": "Drivers",
+      "rating": 5
+    },
+    {
+      "id": "74",
+      "name": ".NET Framework",
+      "url": "http://dl.drp.su/soft/DotNet.exe",
+      "version": "4.8.0",
+      "publisher": "Microsoft Corporation",
+      "category": "Drivers",
+      "registry": "HKCU\\Software\\DRP\\.NET Framework\\NT-Version",
+      "rating": 5
+    },
+    {
+      "id": "75",
+      "name": ".NET Framework",
+      "url": "http://dl.drp.su/soft/DotNetXP.exe",
+      "version": "1.1-4.0",
+      "publisher": "Microsoft Corporation",
+      "category": "Drivers",
+      "registry": "HKCU\\Software\\DRP\\.NET Framework\\XP-Version",
+      "rating": 0
+    },
+    {
+      "id": "910",
+      "name": "Asus Tools for Windows XP",
+      "url": "http://dl.drp.su/tools/AsusXP.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{AB5C933E-5C7D-4D30-B314-9C83A49B94BE}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "912",
+      "name": "Asus Tools for Windows 7",
+      "url": "http://dl.drp.su/tools/Asus7.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{AB5C933E-5C7D-4D30-B314-9C83A49B94BE}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "913",
+      "name": "Asus Tools for Windows 8",
+      "url": "http://dl.drp.su/tools/Asus8.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{AB5C933E-5C7D-4D30-B314-9C83A49B94BE}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "914",
+      "name": "Asus Tools for Windows 8.1",
+      "url": "http://dl.drp.su/tools/Asus81.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{AB5C933E-5C7D-4D30-B314-9C83A49B94BE}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "915",
+      "name": "Asus Tools for Windows 10",
+      "url": "http://dl.drp.su/tools/Asus10.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{AB5C933E-5C7D-4D30-B314-9C83A49B94BE}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "930",
+      "name": "Dell Tools for Windows 7",
+      "url": "http://dl.drp.su/tools/Dell7.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{87CF757E-C1F1-4D22-865C-00C6950B5258}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "931",
+      "name": "Dell Tools for Windows 8.1",
+      "url": "http://dl.drp.su/tools/Dell81.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{87CF757E-C1F1-4D22-865C-00C6950B5258}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "932",
+      "name": "Dell Tools for Windows 10",
+      "url": "http://dl.drp.su/tools/Dell10.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{87CF757E-C1F1-4D22-865C-00C6950B5258}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "950",
+      "name": "Fujitsu Tools for Windows 7-10",
+      "url": "http://dl.drp.su/tools/FujitsuNT.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\InstallShield_{C8E4B31D-337C-483D-822D-16F11441669B}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "960",
+      "name": "HP Tools for Windows 7-10",
+      "url": "http://dl.drp.su/tools/HPNT.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{09D0DB68-90EA-4015-983E-A0BD777D5A02}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "965",
+      "name": "MSI Tools for Windows x86",
+      "url": "http://dl.drp.su/tools/MSI86.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{8B57FEA1-ABC0-4469-9205-856FD0D97C40}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "966",
+      "name": "MSI Tools for Windows x64",
+      "url": "http://dl.drp.su/tools/MSI64.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{8B57FEA1-ABC0-4469-9205-856FD0D97C40}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "980",
+      "name": "Toshiba Tools for Windows 7-10",
+      "url": "http://dl.drp.su/tools/ToshibaNT.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\InstallShield_{6F3C8901-EBD3-470D-87F8-AC210F6E5E02}\\DisplayName",
+      "rating": 0
+    },
+    {
+      "id": "990",
+      "name": "Vizio Tools for Windows 7-10",
+      "url": "http://dl.drp.su/tools/VizioNT.exe",
+      "version": "1.0",
+      "category": "Drivers",
+      "registry": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{4F949BD9-1E99-40C7-9102-C67E2D384995}_is1\\DisplayName",
+      "rating": 0
+    }
+  ]
+}

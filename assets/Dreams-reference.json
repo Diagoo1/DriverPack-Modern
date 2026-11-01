@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/Diagoo1/Dreams-Software-Collection",
+  "about": "Windows/About.xaml",
+  "avatar": "Assets/Avatars/Avatar.jpg",
+  "license": "MIT",
+  "avatarSha256": "cf7b0afb59a4ed14c325800e5312fe5764c5e8e9e7ac030f64ae858a1e74fbda",
+  "usedFor": "User-requested developer About page"
+}

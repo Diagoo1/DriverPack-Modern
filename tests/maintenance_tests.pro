@@ -1,0 +1,9 @@
+QT = core
+CONFIG += console c++11
+CONFIG -= app_bundle
+TARGET = DriverPackMaintenanceTests
+DEFINES += QT_NO_CAST_FROM_ASCII MAINTENANCE_CORE_ONLY
+SOURCES += maintenance_tests.cpp ../src/library_maintenance.cpp ../src/software_catalog.cpp
+LIBS += -ladvapi32
+QMAKE_LFLAGS += -static -static-libgcc -static-libstdc++
+RESOURCES += software_fixture.qrc

@@ -1,0 +1,11 @@
+/build/
+/release/
+/vendor/
+/native/install64.exe
+/native/*.obj
+/assets/fonts/Satoshi-*.ttf
+*.user
+*.log
+*.ini
+*.jsonl
+__pycache__/

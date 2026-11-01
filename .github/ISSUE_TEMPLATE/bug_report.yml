@@ -1,0 +1,26 @@
+name: Bug report / بلاغ عن مشكلة
+description: Report a reproducible problem in the Beta.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "Beta: include the exact error and reproduction steps. Remove personal/device identifiers from screenshots and logs."
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / بيئة التشغيل
+      description: Version, Windows, architecture, language and theme.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps and result / الخطوات والنتيجة
+      description: What happened, what you expected, and the exact error code.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reviewed screenshots or log excerpt
+      description: Optional. Do not upload complete private hardware reports or credentials.
