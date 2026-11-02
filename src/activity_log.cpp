@@ -1,4 +1,5 @@
 #include "activity_log.h"
+#include "crash_diagnostics.h"
 #include "offline_paths.h"
 #include "appearance.h"
 #include "theme.h"
@@ -63,6 +64,15 @@ void show(QWidget *parent, const QString &library, bool arabic, bool preview)
     footer->addWidget(count, 1);
     auto save = new QPushButton(tr("Save readable report…", "حفظ تقرير مقروء…"));
     footer->addWidget(save);
+    auto diagnostics = new QPushButton(tr("Open session folder", "فتح مجلد الجلسة"));
+    diagnostics->setCursor(Qt::PointingHandCursor);
+    diagnostics->setMinimumHeight(38);
+    diagnostics->setToolTip(CrashDiagnostics::directory());
+    diagnostics->setEnabled(!CrashDiagnostics::directory().isEmpty());
+    QObject::connect(diagnostics,&QPushButton::clicked,&panel,[](){
+        QDesktopServices::openUrl(QUrl::fromLocalFile(CrashDiagnostics::directory()));
+    });
+    footer->addWidget(diagnostics);
     box->addLayout(footer);
     const bool dark = Theme::isDark(parent);
     const QString ink = Theme::color("text", dark).name(), surface = Theme::color("surface", dark).name(),
@@ -77,7 +87,7 @@ void show(QWidget *parent, const QString &library, bool arabic, bool preview)
     detail->setStyleSheet(
         QStringLiteral("background:%1;color:%2;border:1px solid %3;border-radius:12px;padding:8px;")
             .arg(surface, ink, border));
-    for (auto button : {refresh, save})
+    for (auto button : {refresh, save, diagnostics})
     {
         button->setCursor(Qt::PointingHandCursor);
         button->setMinimumHeight(38);
@@ -112,7 +122,7 @@ void show(QWidget *parent, const QString &library, bool arabic, bool preview)
             }
         }
         else
-            records = readRecent(QDir(DriverPackLibrary::logDirectory(library)).filePath(QStringLiteral("native-events.jsonl")));
+            records = readRecent(QDir(CrashDiagnostics::directory().isEmpty()?DriverPackLibrary::logDirectory(library):CrashDiagnostics::directory()).filePath(QStringLiteral("native-events.jsonl")));
         const QStringList stages = {tr("Scan", "فحص"),
                                     tr("Indexes", "الفهارس"),
                                     tr("Matching", "المطابقة"),

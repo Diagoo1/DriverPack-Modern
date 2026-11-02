@@ -3,6 +3,9 @@
 // screen/workflow reference; no original JavaScript or HTA is executed here.
 #include "driverpack_shell.h"
 #include "activity_log.h"
+#include "crash_diagnostics.h"
+#include "download_cache_cleanup.h"
+#include "software_setup_status.h"
 #include "about_page.h"
 #include "appearance.h"
 #include "app_settings.h"
@@ -261,12 +264,10 @@ class ProjectTable : public QTreeWidget
             const QModelIndex index = indexAt(help->pos());
             if (index.isValid())
             {
-                viewport()->setToolTip(index.data(Qt::ToolTipRole).toString().isEmpty()
+                const QString text=index.data(Qt::ToolTipRole).toString().isEmpty()
                                            ? index.data().toString()
-                                           : index.data(Qt::ToolTipRole).toString());
-                QHelpEvent projectHelp(QEvent::ToolTip, help->pos(), help->globalPos());
-                QApplication::sendEvent(viewport(), &projectHelp);
-                viewport()->setToolTip(QString());
+                                           : index.data(Qt::ToolTipRole).toString();
+                showProjectToolTip(viewport(),text,help->globalPos());
             }
             event->accept();
             return true;
@@ -546,10 +547,7 @@ class PillTabBar : public QTabBar
             for (int index = 0; index < count(); ++index)
                 if (tabArea(index).contains(help->pos()))
                 {
-                    setToolTip(tabToolTip(index).isEmpty() ? tabText(index) : tabToolTip(index));
-                    QHelpEvent projectHelp(QEvent::ToolTip, help->pos(), help->globalPos());
-                    QApplication::sendEvent(this, &projectHelp);
-                    setToolTip(QString());
+                    showProjectToolTip(this,tabToolTip(index).isEmpty()?tabText(index):tabToolTip(index),help->globalPos());
                     event->accept();
                     return true;
                 }
@@ -1692,7 +1690,7 @@ void DriverPackShell::rebuild()
     connect(browse,&QPushButton::clicked,this,[this](){chooseLibrary();});body->addSpacing(12);body->addLayout(commands);
     auto centered = new QHBoxLayout;centered->addStretch(1);centered->addWidget(content,100);centered->addStretch(1);
     loading->addLayout(centered);loading->addStretch(2);
-    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.5 Beta", "تصميم وتطوير · طارق صادق  |  0.22.5 بيتا"),m_loading);
+    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.9 Beta", "تصميم وتطوير · طارق صادق  |  0.22.9 بيتا"),m_loading);
     credit->setObjectName(QStringLiteral("loadingCredit"));credit->setAlignment(Qt::AlignCenter);
     credit->setStyleSheet(QStringLiteral("font-size:13px;color:#b9e2e6;background:transparent;padding:8px;"));
     loading->addWidget(credit);
@@ -1776,10 +1774,11 @@ void DriverPackShell::loadSoftware()
 }
 void DriverPackShell::applyOptions()
 {
+    CrashDiagnostics::checkpoint(QStringLiteral("configure-library %1").arg(m_library));
     sdiomodern::Paths p;
     p.drivers = QDir(m_library).filePath(QStringLiteral("drivers")).toStdWString();
     p.indexes = QDir(m_library).filePath(QStringLiteral("index")).toStdWString();
-    p.logDirectory = DriverPackLibrary::logDirectory(m_library).toStdWString();
+    p.logDirectory = (CrashDiagnostics::directory().isEmpty()?DriverPackLibrary::logDirectory(m_library):CrashDiagnostics::directory()).toStdWString();
     setProperty("resolvedLibrary",m_library);
     setProperty("libraryReadOnly",DriverPackLibrary::readOnly(m_library));
     setProperty("operationLogDirectory",QString::fromStdWString(p.logDirectory));
@@ -2036,6 +2035,7 @@ void DriverPackShell::startPage()
 }
 void DriverPackShell::expert(int page)
 {
+    CrashDiagnostics::checkpoint(QStringLiteral("ui-navigate page=%1 installing=%2").arg(page).arg(m_installing));
     if (m_installing || m_softwareActive)
         return;
     m_page = qBound(0, page, 6);
@@ -2196,6 +2196,7 @@ void DriverPackShell::updateCounts()
 }
 void DriverPackShell::selectRecommended()
 {
+    CrashDiagnostics::checkpoint(QStringLiteral("ui-select-recommended"));
     m_remote.clear();
     m_remoteChoices.clear();
     m_catalog->selectAll(true);
@@ -2215,6 +2216,7 @@ void DriverPackShell::selectRecommended()
 }
 void DriverPackShell::setDriver(int row, bool checked)
 {
+    CrashDiagnostics::checkpoint(QStringLiteral("ui-select-driver row=%1 checked=%2").arg(row).arg(checked));
     const auto e = m_catalog->entry(row);
     if (checked && m_mode == 0)
         m_mode = 1;
@@ -4591,13 +4593,10 @@ void DriverPackShell::buildSettings(QWidget *page)
         m_settingsGrid = grid;
         box->addWidget(grid);
     };
-    auto viewLog=action(t("View activity log…","عرض سجل النشاط…"),body);
-    viewLog->setObjectName(QStringLiteral("viewActivityLog"));viewLog->setIcon(VectorIcons::icon(QStringLiteral("activity"),QColor("#00aaa9"),20));
-    connect(viewLog,&QPushButton::clicked,this,[this](){logDialog();});box->addWidget(viewLog,0,Qt::AlignLeading);
     settingsGroup();
     setting(box, "Enable logging", "حفظ سجلات العمل",
-            "Keep local logs for diagnosing scan or installation errors.",
-            "حفظ سجلات محلية لتشخيص أخطاء الفحص أو التثبيت.", QStringLiteral("driverpack/enableLogging"),
+            "Keep detailed engine activity. Basic crash diagnostics always stay local.",
+            "حفظ أحداث المحرك التفصيلية. تبقى سجلات الكراش الأساسية محلية دائمًا.", QStringLiteral("driverpack/enableLogging"),
             true);
     setting(box, "Remove installation temporary files", "حذف الملفات المؤقتة للتثبيت",
             "Remove extracted driver files after an installation finishes.",
@@ -4624,6 +4623,21 @@ void DriverPackShell::buildSettings(QWidget *page)
             "Select recommended local packages after a successful scan.",
             "تحديد الحزم المحلية الموصى بها بعد نجاح الفحص.",
             QStringLiteral("driverpack/defaultRecommendations"), false);
+    auto storage=new SurfaceCard(body);storage->setObjectName(QStringLiteral("storageCleanupCard"));
+    auto storageBox=new QVBoxLayout(storage);storageBox->setContentsMargins(22,20,22,22);storageBox->setSpacing(18);
+    auto storageHeader=new QHBoxLayout;storageHeader->setSpacing(14);
+    auto storageIcon=new QLabel(storage);storageIcon->setPixmap(VectorIcons::pixmap(QStringLiteral("activity"),QColor("#00aaa9"),24));storageIcon->setFixedSize(46,46);storageIcon->setAlignment(Qt::AlignCenter);storageIcon->setStyleSheet(QStringLiteral("background:%1;border-radius:14px;").arg(Theme::color("elevated",m_dark).name()));storageHeader->addWidget(storageIcon);
+    auto storageLabels=new QVBoxLayout;storageLabels->setSpacing(6);
+    auto storageTitle=copy(t("Storage & diagnostics","التخزين والتشخيص"),storage,"settingTitle");QFont storageFont=font();storageFont.setPixelSize(16);storageFont.setWeight(QFont::DemiBold);storageTitle->setFont(storageFont);storageLabels->addWidget(storageTitle);
+    storageLabels->addWidget(copy(t("Review activity or clear local data. Recent sessions and crash reports are retained automatically.","راجع النشاط أو نظّف البيانات المحلية. يُحتفظ بآخر الجلسات وتقارير الكراش تلقائيًا."),storage,"caption"));storageHeader->addLayout(storageLabels,1);storageBox->addLayout(storageHeader);
+    auto storageButtons=new QHBoxLayout;storageButtons->setSpacing(12);
+    auto viewLog=action(t("Activity log…","سجل النشاط…"),storage);viewLog->setObjectName(QStringLiteral("viewActivityLog"));viewLog->setIcon(VectorIcons::icon(QStringLiteral("activity"),QColor("#00aaa9"),20));
+    auto logs=action(t("Clear logs…","مسح السجلات…"),storage);logs->setObjectName(QStringLiteral("clearDiagnosticLogs"));logs->setIcon(VectorIcons::icon(QStringLiteral("close"),QColor("#00aaa9"),20));
+    auto cache=action(t("Clear cache…","تنظيف الكاش…"),storage);cache->setObjectName(QStringLiteral("clearDownloadCache"));cache->setIcon(VectorIcons::icon(QStringLiteral("layers"),QColor("#00aaa9"),20));
+    for(auto button:{viewLog,logs,cache}){button->setMinimumHeight(46);storageButtons->addWidget(button,1);}
+    for(auto button:{logs,cache})button->setEnabled(!m_demo&&!m_capture&&!busy());
+    connect(viewLog,&QPushButton::clicked,this,[this](){logDialog();});
+    connect(logs,&QPushButton::clicked,this,[this](){cleanupStorage(false);});connect(cache,&QPushButton::clicked,this,[this](){cleanupStorage(true);});storageBox->addLayout(storageButtons);box->addWidget(storage);
     category(t("Recovery", "الاستعادة"), QStringLiteral("shield"));
     section(box, t("Errors and recovery", "الأخطاء والاستعادة"));
     settingsGroup();
@@ -4852,6 +4866,17 @@ void DriverPackShell::tools()
     m_tools->toggle();
 }
 void DriverPackShell::logDialog(){ActivityLog::show(this,m_library,m_arabic,m_demo);}
+void DriverPackShell::cleanupStorage(bool cache){
+    if(m_capture||m_demo)return;
+    bool running=busy();for(auto worker:findChildren<OnlineWorker*>())running=running||worker->isRunning();
+    if(running){showMessage(t("Operation in progress","عملية جارية"),t("Wait for installation or downloads to finish before cleaning.","انتظر انتهاء التثبيت أو التنزيل قبل التنظيف."));return;}
+    const QString title=cache?t("Clear download cache","تنظيف كاش التنزيل"):t("Clear logs","مسح السجلات");
+    const QString message=cache?t("Remove cached catalog and saved download blocks? Those blocks will need downloading again to resume. Driver archives, indexes, program installers and settings are preserved.","هل تريد حذف الكتالوج المؤقت وكتل التنزيل المحفوظة؟ ستحتاج إعادة تنزيل هذه الكتل عند الاستكمال. ستبقى حزم التعريفات والفهارس ومثبتات البرامج والإعدادات."):
+        t("Clear older session logs and reset this session's logs? The latest crash report is preserved. New activity will continue to be recorded.","هل تريد مسح سجلات الجلسات القديمة وتفريغ سجلات الجلسة الحالية؟ سيبقى آخر تقرير كراش محفوظًا، وسيستمر تسجيل الأحداث الجديدة.");
+    if(!confirm(title,message))return;
+    if(cache){const auto result=DownloadCacheCleanup::clear(m_library);showMessage(title,t("Removed %1 cached files (%2 MB). Files that could not be removed: %3.","حُذف %1 ملف مؤقت (%2 ميجابايت). ملفات تعذر حذفها: %3.").arg(result.files).arg(result.bytes/1048576.0,0,'f',1).arg(result.failed));}
+    else{int removed=0;const bool ok=CrashDiagnostics::clearLogs(&removed);showMessage(title,(ok?t("Removed %1 older sessions and reset the current logs. The latest crash report is preserved.","حُذفت %1 جلسات قديمة وأُفرغت السجلات الحالية. آخر تقرير كراش محفوظ."):t("Removed %1 older sessions. Some open logs could not be reset; close other log viewers and try again.","حُذفت %1 جلسات قديمة. تعذر تفريغ بعض السجلات المفتوحة؛ أغلق عارض السجلات وأعد المحاولة.")).arg(removed));}
+}
 void DriverPackShell::toolAction(const QString &id)
 {
     if(id==QStringLiteral("activity-log")){logDialog();return;}
@@ -5462,6 +5487,7 @@ void DriverPackShell::installationPage()
 }
 void DriverPackShell::startInstall()
 {
+    CrashDiagnostics::checkpoint(QStringLiteral("ui-install-click"));
     if (busy() || m_capture || m_demo)
         return;
     const bool drivers = !m_softwareOnly && m_singleSoftware.isEmpty() && m_catalog->selectedDrivers() > 0;
@@ -5546,6 +5572,8 @@ void DriverPackShell::startInstall()
     }
     m_downloadOnly = false;
     m_resultDownloadOnly = false;
+    m_setupStopped = false;
+    m_cancelSoftware = false;
     m_restoreFailed = false;
     m_restoreSkipped = false;
     m_error.clear();
@@ -5642,6 +5670,7 @@ void DriverPackShell::nativeProgress(const sdiomodern::Event &e)
 }
 bool DriverPackShell::confirmWithoutRestore(const QString &captureFile)
 {
+    CrashDiagnostics::checkpoint(QStringLiteral("restore-choice-open"));
     RoundedDialog dialog(this);dialog.setObjectName(QStringLiteral("disabledRestoreConfirmation"));
     dialog.resize(qMin(620,width()-40),330);
     auto frame=new QVBoxLayout(&dialog);frame->setContentsMargins(0,0,0,0);frame->setSpacing(0);
@@ -5655,7 +5684,9 @@ bool DriverPackShell::confirmWithoutRestore(const QString &captureFile)
     cancel->setDefault(true);proceed->setAutoDefault(false);
     connect(cancel,&QPushButton::clicked,&dialog,&QDialog::reject);connect(proceed,&QPushButton::clicked,&dialog,&QDialog::accept);box->addLayout(buttons);
     if(m_capture && !captureFile.isEmpty())QTimer::singleShot(80,&dialog,[&dialog,captureFile](){dialog.grab().save(captureFile);dialog.reject();});
-    return dialog.exec()==QDialog::Accepted;
+    const bool accepted=dialog.exec()==QDialog::Accepted;
+    CrashDiagnostics::checkpoint(accepted?QStringLiteral("restore-choice-continue"):QStringLiteral("restore-choice-cancel"));
+    return accepted;
 }
 void DriverPackShell::nativeFinished(const sdiomodern::InstallReport &r)
 {
@@ -5664,8 +5695,17 @@ void DriverPackShell::nativeFinished(const sdiomodern::InstallReport &r)
     if(DriverPackWorkflow::offerDisabledRestoreChoice(r) && !m_activeInstallPlan.continueOnRestoreFailure && !m_capture && !m_demo) {
         if(confirmWithoutRestore()) {
             m_activeInstallPlan.continueOnRestoreFailure=true;m_restoreFailed=false;m_error.clear();m_installing=true;
-            if(m_engine->requestInstallation(m_activeInstallPlan))return;
-            m_installing=false;
+            // Leave both the finished signal and the modal dialog's nested event
+            // loop before restarting the worker. No report references cross it.
+            QTimer::singleShot(0,this,[this](){
+                CrashDiagnostics::checkpoint(QStringLiteral("restore-choice-retry-dispatched"));
+                if(!m_engine->requestInstallation(m_activeInstallPlan)) {
+                    m_installing=false;m_pendingSoftware=false;m_resultFailed=true;
+                    m_error=t("Could not resume the selected installation.","تعذرت متابعة التثبيت المحدد.");
+                    m_clock->stop();presentInstallationResult();
+                }
+            });
+            return;
         }
     }
     m_restoreSkipped=r.restoreSkipped;
@@ -5714,6 +5754,7 @@ void DriverPackShell::downloadSoftwareOnly()
     m_lastReboot = false;
     m_downloadOnly = true;
     m_resultDownloadOnly = true;
+    m_setupStopped = false;
     int row = 0;
     for (const auto &program : m_programs)
         if (!program.excluded && DriverPackSoftware::allowedUrl(program.url))
@@ -5844,15 +5885,18 @@ void DriverPackShell::nextSoftware()
     info.nShow = SW_SHOWNORMAL;
     if (!ShellExecuteExW(&info) || !info.hProcess)
     {
-        m_resultFailed = true;
-        m_error = t("The setup was cancelled or could not start. Windows error: %1",
-                    "أُلغي المثبت أو تعذّر تشغيله. خطأ ويندوز: %1")
-                      .arg(GetLastError());
+        const DWORD error=GetLastError();m_setupStopped=true;
+        if(SoftwareSetupStatus::cancelled(error))m_cancelSoftware=true;else m_resultFailed=true;
+        m_error=SoftwareSetupStatus::cancelled(error)?t("Software setup was cancelled. Remaining setups were stopped.","أُلغي تثبيت البرنامج. تم إيقاف باقي المثبتات."):
+            t("The setup could not start. Windows error: %1","تعذر تشغيل المثبت. خطأ ويندوز: %1").arg(error);
+        m_resultStates[id]=SoftwareSetupStatus::cancelled(error)?t("Cancelled","أُلغي"):t("Could not start","تعذر التشغيل");
+        CrashDiagnostics::checkpoint(QStringLiteral("software-launch-ended name=%1 code=%2").arg(program.name).arg(error));
         m_softwareQueue.clear();
         nextSoftware();
         return;
     }
     m_setup = info.hProcess;
+    CrashDiagnostics::checkpoint(QStringLiteral("software-start name=%1 file=%2").arg(program.name,file));
     m_installText->setText(
         t("%1 setup is open. Follow its wizard to continue.", "مثبت %1 مفتوح. اتبع معالجه للمتابعة.")
             .arg(program.name));
@@ -5887,18 +5931,18 @@ void DriverPackShell::pollSoftware()
         m_setup = 0;
         const auto program = m_programs[m_currentProgram];
         const QString id = QStringLiteral("software:") + program.id;
-        const bool success = code == 0 || code == 3010;
+        const bool success = SoftwareSetupStatus::success(code),cancelled=SoftwareSetupStatus::cancelled(code);
         QString state = success ? t("Setup finished", "انتهى المثبت")
-                                : t("Setup failed / cancelled", "فشل المثبت أو أُلغي");
+                                : cancelled?t("Cancelled","أُلغي"):t("Setup stopped (code %1)","توقف المثبت (رمز %1)").arg(code);
+        CrashDiagnostics::checkpoint(QStringLiteral("software-exit name=%1 code=%2 confirmedCancellation=%3").arg(program.name).arg(code).arg(cancelled));
         m_resultStates.insert(id, state);
         if (m_resultRows.contains(id))
             m_installItemMap.value(id)->setText(1, state);
         if (!success)
         {
-            m_resultFailed = true;
-            m_error = t("Software setup returned Windows code %1. Remaining setups were stopped.",
-                        "أعاد المثبت رمز ويندوز %1. تم إيقاف باقي المثبتات.")
-                          .arg(code);
+            m_setupStopped=true;if(cancelled)m_cancelSoftware=true;else m_resultFailed=true;
+            m_error=cancelled?t("Software setup was cancelled. Remaining setups were stopped.","أُلغي تثبيت البرنامج. تم إيقاف باقي المثبتات."):
+                t("The installer closed without confirming completion (exit code %1). This can happen after cancellation; remaining setups were stopped.","أُغلق المثبت دون تأكيد اكتماله (رمز الخروج %1). قد يحدث ذلك عند الإلغاء؛ تم إيقاف باقي المثبتات.").arg(code);
             m_softwareQueue.clear();
         }
         else
@@ -5924,6 +5968,7 @@ void DriverPackShell::presentInstallationResult()
 }
 void DriverPackShell::finalPage()
 {
+    CrashDiagnostics::checkpoint(QStringLiteral("ui-result failed=%1 error=%2").arg(m_resultFailed).arg(m_error));
     m_clock->stop();
     if (m_final->layout())
     {
@@ -5939,11 +5984,13 @@ void DriverPackShell::finalPage()
     auto hero=new AccentCard(m_final);
     hero->setStyleSheet(QStringLiteral("QLabel{color:white;background:transparent;} QLabel#caption{color:#c4ebec;}"));
     auto summary=new QHBoxLayout(hero);summary->setContentsMargins(24,22,24,22);summary->setSpacing(18);
-    auto symbol=new QLabel(hero);symbol->setPixmap(VectorIcons::pixmap(m_restoreFailed?QStringLiteral("shield"):m_resultFailed?QStringLiteral("alert"):QStringLiteral("check"),QColor("#d2faf4"),40));
+    auto symbol=new QLabel(hero);symbol->setPixmap(VectorIcons::pixmap(m_restoreFailed?QStringLiteral("shield"):(m_resultFailed||m_setupStopped||m_cancelSoftware)?QStringLiteral("alert"):QStringLiteral("check"),QColor("#d2faf4"),40));
     symbol->setFixedSize(48,48);symbol->setAlignment(Qt::AlignCenter);summary->addWidget(symbol);
     auto labels=new QVBoxLayout;labels->setSpacing(7);
     const QString heading=m_capture?t("Result screen preview — no installation performed","معاينة النتائج — لم يُنفّذ تثبيت"):
         m_restoreFailed?t("Installation paused: restore point unavailable","التثبيت متوقف: تعذّر إنشاء نقطة الاستعادة"):
+        m_cancelSoftware?t("Operation cancelled","أُلغيت العملية"):
+        m_setupStopped?t("Software installation stopped","توقف تثبيت البرامج"):
         m_resultFailed?t("Operation completed with errors","انتهت العملية مع أخطاء"):m_restoreSkipped?t("Completed without a restore point","اكتمل بدون نقطة استعادة"):t("Operation completed","اكتملت العملية");
     auto title=copy(heading,hero,"title");title->setStyleSheet(QStringLiteral("font-size:24px;font-weight:600;color:white;"));labels->addWidget(title);
     labels->addWidget(copy(m_restoreFailed?t("No driver was installed. Review the details below before trying again.","لم يُثبّت أي تعريف. راجع التفاصيل أدناه قبل إعادة المحاولة."):
@@ -6035,6 +6082,35 @@ int DriverPackShell::capture(const QString &folder)
         return 50;
     setAttribute(Qt::WA_DontShowOnScreen);
     show();
+    if(QCoreApplication::arguments().contains(QStringLiteral("--capture-storage-settings"))) {
+        QDir().mkpath(folder);
+        for(bool arabic:{false,true})for(bool dark:{false,true}) {
+            m_arabic=arabic;m_language=arabic?QStringLiteral("arabic"):QStringLiteral("english");UiLanguage::setLanguage(m_language);setLayoutDirection(arabic?Qt::RightToLeft:Qt::LeftToRight);m_themeMode=dark?QStringLiteral("dark"):QStringLiteral("light");appearance();expert(5);events(80);
+            auto logs=findChild<QPushButton*>(QStringLiteral("clearDiagnosticLogs"));auto cache=findChild<QPushButton*>(QStringLiteral("clearDownloadCache"));
+            if(!logs||!cache||logs->height()<44||qAbs(logs->width()-cache->width())>2)return 182;
+            // Capture shows the real enabled appearance; slots remain no-op in capture mode.
+            logs->setEnabled(true);cache->setEnabled(true);for(auto area:m_pages->currentWidget()->findChildren<QScrollArea*>())area->ensureWidgetVisible(logs,0,20);events(20);
+            grab().save(QDir(folder).filePath((arabic?QStringLiteral("ar"):QStringLiteral("en"))+(dark?QStringLiteral("-dark.png"):QStringLiteral("-light.png"))));
+        }
+        return 0;
+    }
+    if(QCoreApplication::arguments().contains(QStringLiteral("--capture-tooltip-regression"))) {
+        QDir().mkpath(folder);int sent=0;
+        for(bool arabic:{false,true})for(bool dark:{false,true}) {
+            m_arabic=arabic;m_language=arabic?QStringLiteral("arabic"):QStringLiteral("english");UiLanguage::setLanguage(m_language);setLayoutDirection(arabic?Qt::RightToLeft:Qt::LeftToRight);m_themeMode=dark?QStringLiteral("dark"):QStringLiteral("light");appearance();
+            ProjectTable table(this);table.setGeometry(10,80,650,220);table.setColumnCount(3);
+            table.setHeaderLabels(QStringList()<<QStringLiteral("Driver")<<QStringLiteral("State")<<QStringLiteral("Time"));
+            auto row=new QTreeWidgetItem(&table);row->setText(0,QStringLiteral("Fixture driver"));row->setText(1,QStringLiteral("Extracting"));row->setText(2,QString());row->setSizeHint(0,QSize(0,50));
+            table.setRootIsDecorated(false);for(int i=0;i<3;++i)table.setColumnWidth(i,190);table.show();events(20);
+            PillTabBar tabs(this);tabs.setGeometry(10,310,650,54);tabs.addTab(QStringLiteral("General"));tabs.addTab(QString());tabs.show();events(20);
+            for(int repeat=0;repeat<250;++repeat) {
+                for(int column=0;column<3;++column){const auto index=table.model()->index(0,column);const QPoint pos=table.visualRect(index).center();if(table.indexAt(pos)!=index)return 181;QHelpEvent help(QEvent::ToolTip,pos,table.viewport()->mapToGlobal(pos));QApplication::sendEvent(table.viewport(),&help);++sent;}
+                const QPoint pos=tabs.tabArea(1).center();QHelpEvent help(QEvent::ToolTip,pos,tabs.mapToGlobal(pos));QApplication::sendEvent(&tabs,&help);++sent;
+            }
+        }
+        QJsonObject result;result.insert(QStringLiteral("tooltipEvents"),sent);result.insert(QStringLiteral("emptyCellsAndTabs"),true);result.insert(QStringLiteral("installationRequested"),false);
+        QFile output(QDir(folder).filePath(QStringLiteral("tooltip-regression.json")));if(!output.open(QIODevice::WriteOnly))return 180;output.write(QJsonDocument(result).toJson());return 0;
+    }
     if(QCoreApplication::arguments().contains(QStringLiteral("--capture-result-states"))) {
         QDir().mkpath(folder);
         auto probe=new RoundedActivityBar(this);probe->setGeometry(20,70,300,20);probe->setRange(0,1000);probe->setValue(0);probe->show();events(40);

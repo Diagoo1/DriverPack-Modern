@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "engine_bridge.h"
 #include "offline_paths.h"
+#include "crash_diagnostics.h"
 EngineBridge::EngineBridge(QObject* p):QObject(p),m_scanner(new DeviceScanner(this)),m_worker(new OriginWorker(this)),m_pending(false)
 {
     qRegisterMetaType<sdiomodern::Snapshot>("sdiomodern::Snapshot");
@@ -45,6 +46,8 @@ void EngineBridge::requestLoadSnapshot(const QString &file){
     m_worker->resetRequest();m_worker->job=OriginWorker::Scan;m_pending=true;m_worker->start();
 }
 bool EngineBridge::requestInstallation(const sdiomodern::InstallPlan& plan){
+    CrashDiagnostics::checkpoint(QStringLiteral("install-request count=%1 restore=%2 bypassConsent=%3 busy=%4 canInstall=%5")
+        .arg(plan.selections.size()).arg(plan.createRestorePoint).arg(plan.continueOnRestoreFailure).arg(isBusy()).arg(canInstall()));
     if(isBusy() || !canInstall()){emit engineError(QStringLiteral("Native installation is not enabled in this build."));return false;}
     m_worker->resetRequest();m_worker->job=OriginWorker::Install;m_worker->plan=plan;m_pending=true;m_worker->start();return true;
 }
@@ -58,7 +61,14 @@ void EngineBridge::completed(){
     m_worker->paths.forceReindex=false;m_worker->paths.indexTextDirectory.clear();
     if(!m_worker->error.isEmpty()){emit engineError(m_worker->error);return;}
     if(m_worker->job==OriginWorker::Scan)emit nativeSnapshotReady(m_worker->output);
-    else if(m_worker->job==OriginWorker::Install)emit nativeInstallationFinished(m_worker->installation);
+    else if(m_worker->job==OriginWorker::Install){
+        // A receiver may start another request (and reset worker-owned output).
+        // Keep the emitted result alive and immutable throughout all receivers.
+        const sdiomodern::InstallReport report=m_worker->installation;
+        CrashDiagnostics::checkpoint(QStringLiteral("install-completed items=%1 restoreFailed=%2 restoreError=%3 cancelled=%4")
+            .arg(report.items.size()).arg(report.restoreFailed).arg(report.restoreError).arg(report.cancelled));
+        emit nativeInstallationFinished(report);
+    }
     else if(m_worker->job==OriginWorker::SaveSnapshot)emit snapshotSaved(QString::fromStdWString(m_worker->snapshotFile));
     else emit toolFinished(m_worker->job==OriginWorker::Restore?QStringLiteral("Windows completed the restore point."):QString::fromStdWString(m_worker->snapshotFile));
 }

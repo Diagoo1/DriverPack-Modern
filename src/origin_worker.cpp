@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "origin_worker.h"
 #include "app_settings.h"
+#include "crash_diagnostics.h"
 #include <QScopedPointer>
 #include "offline_paths.h"
 #include <QFile>
 #include <QDir>
 #include <QDateTime>
+#include <QCoreApplication>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QProcess>
@@ -28,6 +30,8 @@ void OriginWorker::resetRequest(){m_stop.store(false);error.clear();output=sdiom
 void OriginWorker::stopAfterCurrent(){m_stop.store(true);}
 void OriginWorker::run()
 {
+    CrashDiagnostics::checkpoint(QStringLiteral("worker-start job=%1 count=%2 bypassConsent=%3")
+        .arg(int(job)).arg(plan.selections.size()).arg(plan.continueOnRestoreFailure));
     try {
 #ifdef Q_OS_WIN
         WorkerComScope com;
@@ -42,11 +46,20 @@ void OriginWorker::run()
         QFile log(logDir.filePath(QStringLiteral("native-events.jsonl")));
         if(!paths.noLog&&!log.open(QIODevice::WriteOnly|QIODevice::Append) && job==Install)
             throw std::runtime_error("Cannot open the local operation log. No installation was started.");
-        const sdiomodern::EventSink sink=[this,&log](const sdiomodern::Event& e) {
+        const sdiomodern::EventSink sink=[this,&log,logDir](const sdiomodern::Event& e) {
+            if(!paths.noLog)CrashDiagnostics::checkpoint(QStringLiteral("engine-event stage=%1 outcome=%2 error=%3 device=%4 message=%5")
+                .arg(int(e.stage)).arg(int(e.outcome)).arg(e.nativeError).arg(QString::fromStdWString(e.deviceId),QString::fromStdWString(e.message)));
             if(m_stop.load() && job==Scan)throw std::runtime_error("DriverPack catalog scan cancelled.");
             // Serialize exact engine events. No telemetry or automatic upload.
             if(log.isOpen()) {
+                if(log.size()>2*1024*1024) {
+                    const QString previous=logDir.filePath(QStringLiteral("native-events.previous.jsonl"));
+                    log.close();QFile::remove(previous);QFile::rename(log.fileName(),previous);
+                    log.open(QIODevice::WriteOnly|QIODevice::Append);
+                }
                 QJsonObject row;
+                row.insert(QStringLiteral("version"),QStringLiteral("0.22.9"));
+                row.insert(QStringLiteral("pid"),double(QCoreApplication::applicationPid()));
                 row.insert(QStringLiteral("time"),QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
                 row.insert(QStringLiteral("stage"),static_cast<int>(e.stage));
                 row.insert(QStringLiteral("outcome"),static_cast<int>(e.outcome));
@@ -55,7 +68,7 @@ void OriginWorker::run()
                 row.insert(QStringLiteral("win32Error"),static_cast<double>(e.nativeError));
                 row.insert(QStringLiteral("completed"),static_cast<double>(e.done));
                 row.insert(QStringLiteral("total"),static_cast<double>(e.total));
-                log.write(QJsonDocument(row).toJson(QJsonDocument::Compact));log.write("\n");log.flush();
+                if(log.isOpen() && log.size()<4*1024*1024){log.write(QJsonDocument(row).toJson(QJsonDocument::Compact));log.write("\n");log.flush();}
             }
             emit progress(e);
         };
@@ -99,4 +112,5 @@ void OriginWorker::run()
             log.write(QJsonDocument(row).toJson(QJsonDocument::Compact));log.write("\n");
         }
     }
+    CrashDiagnostics::checkpoint(QStringLiteral("worker-return job=%1 error=%2").arg(int(job)).arg(error));
 }

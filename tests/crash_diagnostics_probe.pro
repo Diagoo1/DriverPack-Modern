@@ -1,0 +1,10 @@
+QT = core
+CONFIG += console c++11
+CONFIG -= app_bundle
+TARGET = DriverPackCrashProbe
+DEFINES += QT_NO_CAST_FROM_ASCII
+SOURCES += crash_diagnostics_probe.cpp ../src/crash_diagnostics.cpp
+SOURCES += ../src/diagnostic_sessions.cpp
+HEADERS += ../src/crash_diagnostics.h
+QMAKE_LFLAGS += -static -static-libgcc -static-libstdc++
+win32:LIBS += -luser32

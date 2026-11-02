@@ -72,6 +72,7 @@ class DriverPackShell : public QWidget
     bool confirmWithoutRestore(const QString &captureFile=QString());
     void loadSoftware();
     void logDialog();
+    void cleanupStorage(bool cache);
     void updateCounts();
     void startInstall();
     void beginSoftware();
@@ -116,7 +117,7 @@ class DriverPackShell : public QWidget
     bool m_batchSelecting = false;
     bool m_downloadOnly = false, m_resultDownloadOnly = false, m_restoreFailed = false, m_restoreSkipped=false;
     sdiomodern::InstallPlan m_activeInstallPlan;
-    bool m_cancelSoftware = false, m_softwareOnly = false;
+    bool m_cancelSoftware = false, m_softwareOnly = false, m_setupStopped = false;
     QString m_singleSoftware;
     QSet<QString> m_activeSoftware;
     bool m_arabic = false, m_dark = false, m_demo = false, m_capture = false, m_initial = true,

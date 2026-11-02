@@ -42,6 +42,8 @@ if($Action -in @('Test','All')){
  $peer=Join-Path $SdkRoot 'build-torrent-static\torrent-link.pri'
  Compile (Join-Path $project 'tests\peer_tests.pro') (Join-Path $build 'peer-tests') @(('DRIVERPACK_TORRENT_PRI='+$peer.Replace('\','/')))
  Compile (Join-Path $project 'tests\device_installer_tests.pro') (Join-Path $build 'device-installer-tests')
+ Compile (Join-Path $project 'tests\engine_retry_tests.pro') (Join-Path $build 'engine-retry')
+ Compile (Join-Path $project 'tests\diagnostic_sessions_tests.pro') (Join-Path $build 'session-tests')
  $data=Join-Path $project 'tests\data'
  Checked {& (Join-Path $build 'checks\release\DriverPackCatalogTests.exe') $data}
  Checked {& (Join-Path $build 'transfers\release\DriverPackTransferTests.exe') $data}
@@ -51,6 +53,10 @@ if($Action -in @('Test','All')){
  Checked {& (Join-Path $build 'maintenance-tests\release\DriverPackMaintenanceTests.exe')}
  Checked {& (Join-Path $build 'peer-tests\release\DriverPackPeerTests.exe')}
  Checked {& (Join-Path $build 'device-installer-tests\release\DriverPackDeviceScopeTests.exe')}
+ Checked {& (Join-Path $build 'engine-retry\release\DriverPackEngineRetryTests.exe')}
+ Checked {& (Join-Path $build 'engine-retry\release\DriverPackEngineRetryTests.exe') --all --defer}
+ Checked {& (Join-Path $build 'engine-retry\release\DriverPackEngineRetryTests.exe') --all --cancel}
+ Checked {& (Join-Path $build 'session-tests\release\DriverPackSessionTests.exe')}
 }
 if($Action -in @('Probe','All')){
  if(-not (Test-Path -LiteralPath $exe)){throw 'Run Build first.'}

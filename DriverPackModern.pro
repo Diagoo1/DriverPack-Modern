@@ -8,6 +8,8 @@ TARGET = DriverPackModern
 DEFINES += QT_NO_CAST_FROM_ASCII
 
 SOURCES += \
+    src/crash_diagnostics.cpp \
+    src/diagnostic_sessions.cpp \
     src/online_torrent.cpp \
     src/online_packages.cpp \
     src/online_worker.cpp \
@@ -42,6 +44,8 @@ SOURCES += \
     src/driver_catalog.cpp \
 
 HEADERS += \
+    src/crash_diagnostics.h \
+    src/diagnostic_sessions.h \
     src/online_packages.h \
     src/online_worker.h \
     src/support_report.h \
@@ -69,6 +73,7 @@ RESOURCES += icons.qrc
 
 win32:LIBS += -lsetupapi -lcfgmgr32 -ladvapi32 -lole32 -lwininet
 win32:RC_FILE = resources.rc
+win32:QMAKE_LFLAGS += -Wl,-Map,DriverPackModern.map
 win32:QMAKE_LFLAGS += -Wl,--major-subsystem-version,5,--minor-subsystem-version,1
 win32:QMAKE_LFLAGS += -Wl,--major-os-version,5,--minor-os-version,1
 
@@ -124,3 +129,5 @@ HEADERS += src/activity_log.h
 HEADERS += native/device_installer.h
 
 HEADERS += native/restore_status.h
+
+HEADERS += src/download_cache_cleanup.h src/software_setup_status.h

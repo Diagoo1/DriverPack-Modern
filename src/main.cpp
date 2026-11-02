@@ -23,6 +23,8 @@
 #include "appearance.h"
 #include "app_settings.h"
 #include "app_update.h"
+#include "crash_diagnostics.h"
+#include <QStandardPaths>
 
 #include <QScopedPointer>
 #include <QPointer>
@@ -51,6 +53,14 @@ struct GuiComScope
 
 int main(int argc, char **argv)
 {
+    // Isolated diagnostic subprocess only: no inventory, restore, or installer.
+    for(int i=1;i<argc;++i)if(std::strcmp(argv[i],"--diagnostic-crash-test")==0) {
+        QCoreApplication probe(argc,argv);const auto args=probe.arguments();
+        if(i+1>=args.size() || !args.contains(QStringLiteral("--confirm-diagnostic-test")) || !QDir::isAbsolutePath(args[i+1]))return 2;
+        if(!CrashDiagnostics::initialize(args[i+1]))return 3;
+        CrashDiagnostics::checkpoint(QStringLiteral("intentional-diagnostic-test installationRequested=false restoreRequested=false"));
+        CrashDiagnostics::testCrash();return 4;
+    }
     for(int i=1;i<argc;++i)if(std::strcmp(argv[i],"--restore-point-test")==0) {
         // An explicit maintenance probe: never enters the installation workflow.
         GuiComScope com;
@@ -79,7 +89,7 @@ int main(int argc, char **argv)
     {
         if (std::strcmp(argv[i], "--version") == 0)
         {
-            fprintf(stdout, "DriverPack Modern 0.22.5 Beta | UI by Tarek Sadek\n");
+            fprintf(stdout, "DriverPack Modern 0.22.9 Beta | UI by Tarek Sadek\n");
             return 0;
         }
         if (std::strcmp(argv[i], "--scan-report") == 0)
@@ -122,6 +132,17 @@ int main(int argc, char **argv)
 #endif
 #endif
     QApplication app(argc, argv);
+    const QString isolatedSettings=QString::fromUtf8(qgetenv("DRIVERPACK_MODERN_TEST_SETTINGS"));
+    const QString diagnosticRoot=isolatedSettings.isEmpty()
+        ?QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).filePath(QStringLiteral("TarekSadek/DriverPackModern/Logs"))
+        :QDir(QFileInfo(isolatedSettings).absolutePath()).filePath(QStringLiteral("diagnostics"));
+    if(!CrashDiagnostics::initialize(diagnosticRoot)) {
+        const QString fallback=isolatedSettings.isEmpty()
+            ?QDir(QDir::tempPath()).filePath(QStringLiteral("DriverPackModern/Logs"))
+            :QDir(QFileInfo(isolatedSettings).absolutePath()).filePath(QStringLiteral("runtime/diagnostics"));
+        CrashDiagnostics::initialize(fallback);
+    }
+    QObject::connect(&app,&QCoreApplication::aboutToQuit,[](){CrashDiagnostics::shutdown();});
 #if defined(Q_OS_WIN) && defined(DRIVERPACK_CATALOG_LINKED)
     if (app.arguments().contains(QStringLiteral("--gui-security-probe")))
     {
@@ -133,7 +154,7 @@ int main(int argc, char **argv)
     // Verifiable release identity: scripts can reject stale executables.
     if (app.arguments().contains(QStringLiteral("--version")))
     {
-        fprintf(stdout, "DriverPack Modern 0.22.5 Beta | UI by Tarek Sadek\n");
+        fprintf(stdout, "DriverPack Modern 0.22.9 Beta | UI by Tarek Sadek\n");
         fflush(stdout);
         return 0;
     }

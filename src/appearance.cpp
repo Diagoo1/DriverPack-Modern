@@ -825,6 +825,13 @@ class InterfaceMotion : public QObject
 
   public:
     explicit InterfaceMotion(QObject *p) : QObject(p) {}
+    bool showTip(QWidget *owner,const QString &text,const QPoint &position) {
+        if(!owner || text.isEmpty())return false;
+        if(lastClick.isValid() && lastClick.elapsed()<900)return true;
+        if(tip && tip->isVisible() && tip->parentWidget()==owner && tip->property("tipText").toString()==text)return true;
+        if(tip)delete tip.data();
+        QToolTip::hideText();tip=new ProjectTip(owner,text,position);tip->show();return true;
+    }
     bool eventFilter(QObject *object, QEvent *event) Q_DECL_OVERRIDE
     {
         if (event->type() == QEvent::ToolTip)
@@ -833,23 +840,8 @@ class InterfaceMotion : public QObject
             {
                 if (!owner->toolTip().isEmpty())
                 {
-                    if (lastClick.isValid() && lastClick.elapsed() < 900)
-                    {
-                        event->accept();
-                        return true;
-                    }
-                    if (tip && tip->isVisible() && tip->parentWidget() == owner &&
-                        tip->property("tipText").toString() == owner->toolTip())
-                    {
-                        event->accept();
-                        return true;
-                    }
-                    if (tip)
-                        delete tip.data();
                     auto help = static_cast<QHelpEvent *>(event);
-                    QToolTip::hideText();
-                    tip = new ProjectTip(owner, owner->toolTip(), help->globalPos());
-                    tip->show();
+                    showTip(owner,owner->toolTip(),help->globalPos());
                     event->accept();
                     return true;
                 }
@@ -947,7 +939,14 @@ class InterfaceMotion : public QObject
         return false;
     }
 };
-void installInterfaceMotion() { qApp->installEventFilter(new InterfaceMotion(qApp)); }
+static QPointer<InterfaceMotion> interfaceMotion;
+void installInterfaceMotion() {
+    if(interfaceMotion)return;
+    interfaceMotion=new InterfaceMotion(qApp);qApp->installEventFilter(interfaceMotion);
+}
+bool showProjectToolTip(QWidget *owner,const QString &text,const QPoint &position) {
+    return interfaceMotion && interfaceMotion->showTip(owner,text,position);
+}
 bool projectMessage(QWidget *parent, const QString &title, const QString &message, bool question, bool arabic)
 {
     arabic = arabic || UiLanguage::isRtl();

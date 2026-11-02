@@ -1,0 +1,10 @@
+QT = core gui
+CONFIG += console c++11
+CONFIG -= app_bundle
+TARGET = DriverPackEngineRetryTests
+DEFINES += QT_NO_CAST_FROM_ASCII DRIVERPACK_CATALOG_LINKED DRIVERPACK_INSTALL_AVAILABLE
+SOURCES += engine_retry_tests.cpp ../src/engine_bridge.cpp ../src/crash_diagnostics.cpp
+SOURCES += ../src/diagnostic_sessions.cpp
+HEADERS += ../src/engine_bridge.h ../src/origin_worker.h ../src/device_scanner.h
+QMAKE_LFLAGS += -static -static-libgcc -static-libstdc++
+win32:LIBS += -luser32

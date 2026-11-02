@@ -154,5 +154,7 @@ private:
 };
 
 void installInterfaceMotion();
+// Show directly: never re-send a ToolTip event to the same viewport/tab.
+bool showProjectToolTip(QWidget *owner,const QString &text,const QPoint &globalPosition);
 bool projectMessage(QWidget *parent,const QString &title,const QString &message,bool question=false,bool arabic=false);
 #endif

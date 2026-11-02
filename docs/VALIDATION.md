@@ -1,12 +1,12 @@
 # Beta validation
 
-Version **0.22.5**. Seven fixture suites pass **289 checks**, plus a loopback-only peer transport suite: catalog/selection 95, transfer data 34, independence 42, software adapter 62, cleanup 35, activity-log parser 7, mocked exact-device installer 14. Fixture tests do not install software or modify a production library.
+Version **0.22.9**. Eight fixture suites pass **308 checks**, plus a loopback-only peer transport suite: catalog/selection 95, transfer data 34, independence 42, software adapter 62, cleanup 35, activity-log parser 7, mocked exact-device installer 14, session/cache/cancellation policy 19. Fixture tests do not install software or modify a production library.
 
-The x86 executable links Qt and transport statically. PE auditing found only Windows system DLLs and no known post-XP imports among 662 imported functions. The embedded x64 installation helper is generated from included source.
+The x86 executable links Qt and transport statically. PE auditing found only Windows system DLLs and no known post-XP imports among 683 imported functions. The embedded x64 installation helper is generated from included source.
 
 Native UI capture verifies selection, toggles, alternatives, navigation, scrolling, languages and themes on the development machine. The public gallery uses illustrative data, in English/Arabic and light/dark modes. Its installation view is explicitly a preview.
 
-**Unverified:** a complete XP–11 x86/x64 device/VM matrix; actual driver/software installations and reboot; restore behavior across all target systems (one authorized Windows 11 creation test is documented below); compatibility across all public networks/ISPs; every original DriverPack matching exception. This Beta should not be described as production-ready or fully equivalent to DriverPack. No actual installation was performed to produce screenshots.
+**Unverified:** a complete XP–11 x86/x64 device/VM matrix; broad driver/software installation coverage and reboot; restore behavior across all target systems (one authorized Windows 11 creation test is documented below); compatibility across all public networks/ISPs; every original DriverPack matching exception. This Beta should not be described as production-ready or fully equivalent to DriverPack. No actual installation was performed to produce screenshots.
 
 ## 0.22.1 optical-media regression checks
 
@@ -24,7 +24,7 @@ This validates two real public package downloads, not availability of every torr
 
 The supplied latest Chipset archive reproduces the former 512 MiB aggregate decoder allocation failure. The archive independently passes an integrity test. With the bounded decoder budget corrected, actual Intel Participant and Updater entries extract and pass Windows compatible-node enumeration for their exact device instance and version. Voice Clarity also passes using the exact catalog INF contained in the newer same-family archive. These probes explicitly disable staging and installation. Mocked installer tests cover exact-instance dispatch, selected-version/INF checks, missing devices, failed installs and unavailable APIs. XP-era systems retain the unique-hardware-ID guard; modern systems use dynamically resolved DiInstallDevice. No shared-ID-wide fallback occurs after an instance install fails.
 
-The library still references DP_xVirtual_26044.7z, which is absent from the supplied library; it is not replaced with an unrelated package. Actual installation on the reported second device remains to be confirmed by the user.
+The library still references DP_xVirtual_26044.7z, which is absent from the supplied library; it is not replaced with an unrelated package. At that release, actual installation on the reported second device remained unconfirmed; limited user-supplied results are documented below.
 
 ## 0.22.4 restore-point diagnostics and result page
 
@@ -43,3 +43,15 @@ The active shell's installation, transfer, scan/update activity and portable-cop
 The native UI probe checks actual value immediately after an update, intermediate increasing visual samples, final convergence, reset, continuous retargeting, hidden behavior and reduced motion. The same probes and English/Arabic light/dark installation captures pass at 100% and 150%. These are simulated progress/UI tests, not actual installations. Successful operations may keep the already-completed result visible for at most the remaining bounded fill animation (at most 850 ms); failures/cancellation are not painted as 100% success.
 
 The installation page has a project-color hero, phase chips, visible table header, selected-item count and elapsed time. Restore-point success is emitted explicitly by the native adapter, so its row no longer remains in Creating while installation begins.
+
+## 0.22.6–0.22.9 crash, session management and field feedback
+
+A user-supplied 0.22.6 minidump identified GUI stack overflow (0xC00000FD) with thousands of repeated tooltip/viewport calls. Empty table cells and tabs could synchronously re-send tooltip events to themselves. Direct presentation removes this recursion. Production-widget regression probes send 4,000 events across empty/populated cells, English/Arabic and light/dark; the checks pass at 100% and 150% display scaling.
+
+User-supplied 0.22.7 logs record Windows-confirmed completion of 1-, 2- and 13-item driver batches after explicit consent to skip disabled System Restore, followed by rescans and a clean close. This is limited field evidence on one computer, not independent hardware-function/post-reboot validation or proof for all Windows versions. No raw hardware logs or dumps are published.
+
+GUI diagnostics now use bounded per-session local application-data folders. Retention tests preserve current/locked sessions, newest crash and unknown/unmarked data. Fourteen real test subprocess starts/crashes verify pruning; intentional main/worker/abort/terminate/Qt-fatal failures produce valid dump exception streams. A filled trace still records the fatal exception. Manual clearing resets open session logs and recording continues. Cache tests preserve driver archives and unknown files. Fallback storage and normal native startup pass without writing into the library's legacy logs.
+
+Real QThread bridge tests cover owned result lifetime, immediate/deferred retry and cancellation with one/24 synthetic selections. No installation APIs are present in that backend. Cancellation codes 1223/1602 are distinguished; exit code 2 alone is not treated as proof of cancellation or success. No software installer was launched for these policy tests.
+
+The settings activity/log/cache commands share a card beneath General toggles. Public images remain illustrative UI captures. Cross-version Windows runtime behavior and broad hardware/install coverage remain Beta limitations.

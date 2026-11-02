@@ -148,3 +148,18 @@ Simulated installation views with unknown-duration activity, not actual installa
 ![Installation activity preview](screenshots/ar-light/16-installation-busy-preview.png)
 
 ![Installation activity preview](screenshots/ar-dark/16-installation-busy-preview.png)
+
+## Storage & diagnostics / التخزين والتشخيص
+
+Activity, log clearing and cache clearing are grouped below General toggles. Illustrative UI captures; no cleanup was executed for these images.
+
+<table>
+<tr>
+<td><a href="screenshots/en-light/17-storage-tools.png"><img src="screenshots/en-light/17-storage-tools.png" alt="en light storage and diagnostics"></a></td>
+<td><a href="screenshots/en-dark/17-storage-tools.png"><img src="screenshots/en-dark/17-storage-tools.png" alt="en dark storage and diagnostics"></a></td>
+</tr>
+<tr>
+<td><a href="screenshots/ar-light/17-storage-tools.png"><img src="screenshots/ar-light/17-storage-tools.png" alt="ar light storage and diagnostics"></a></td>
+<td><a href="screenshots/ar-dark/17-storage-tools.png"><img src="screenshots/ar-dark/17-storage-tools.png" alt="ar dark storage and diagnostics"></a></td>
+</tr>
+</table>

@@ -221,7 +221,7 @@ void Splash::paintEvent(QPaintEvent *)
     QFont title = font(); title.setPointSize(34); title.setWeight(QFont::DemiBold);
     p.setFont(title); p.setPen(QColor("#E8FAFA"));
     p.drawText(QRect(0,255,width(),65),Qt::AlignCenter,UiLanguage::language()==QStringLiteral("arabic")?QString::fromUtf8("درايفر باك مودرن"):QStringLiteral("DriverPack Modern"));
-    QFont version=font();version.setPixelSize(14);p.setFont(version);p.setPen(QColor("#C7F1EF"));p.drawText(QRect(0,329,width(),28),Qt::AlignCenter,QStringLiteral("Beta 0.22.5"));
+    QFont version=font();version.setPixelSize(14);p.setFont(version);p.setPen(QColor("#C7F1EF"));p.drawText(QRect(0,329,width(),28),Qt::AlignCenter,QStringLiteral("Beta 0.22.9"));
     QFont cap = font(); cap.setPointSize(13); p.setFont(cap);
     p.setPen(QColor("#E5F8F8"));
     p.drawText(QRect(0,385,width(),25),Qt::AlignCenter,UiLanguage::text(QStringLiteral("Preparing your workspace...")));
