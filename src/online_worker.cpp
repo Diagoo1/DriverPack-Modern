@@ -69,7 +69,7 @@ void OnlineWorker::run()
                     }
                     emit transferStats(p.received, p.downloadRate >= 0 ? p.downloadRate : rate, p.uploadRate,
                                        p.peers);
-                    emit activity(p.message, p.verified, p.total, p.published);
+                    emit activity(p.message + (p.diagnostic.isEmpty()?QString():QStringLiteral("\n")+p.diagnostic), p.verified, p.total, p.published);
                     for (auto it = p.fileVerified.constBegin(); it != p.fileVerified.constEnd(); ++it)
                         if (shown.value(it.key(), -1) != it.value())
                         {

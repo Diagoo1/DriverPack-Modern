@@ -1,13 +1,12 @@
-# DriverPack Modern 0.22.1 Beta — portable/ISO reading fix
+# DriverPack Modern 0.22.2 Beta — download discovery fix
 
-- Replaces the five-second SQLite wall-clock cutoff with a bounded instruction budget and cooperative cancellation. Slow media/PCs are not rejected solely because five seconds elapsed.
-- Pins device-first indexed joins and keeps temporary query data in memory; source catalogs remain read-only.
-- Uses writable local logs for read-only ISO libraries; reads software catalogs without trying to persist them to the disc.
-- Detects an adjacent library after moving the EXE; stale saved paths no longer redirect portable copies. Explicit library choices remain available.
-- Replaces the nested reading/error card with a full-window page and visible native titlebar with the app icon/version, a rounded activity bar, copyable technical details and consistent recovery buttons. Errors do not show a misleading 0% progress bar.
+- Uses the Offline catalog URL linked by the official DriverPack page. The Update and Offline URLs currently return the same catalog; no package versions are invented or substituted.
+- Announces to supported HTTP/UDP trackers concurrently, rather than getting stuck behind unsupported HTTPS tracker tiers in the static legacy transport.
+- Adds a Windows TLS tracker-discovery fallback with exact binary info-hash encoding, bounded replies and independent peer-data verification. Certificate validation remains enabled; no runtime OpenSSL DLL is required.
+- Initializes wanted piece priorities before starting the torrent, keeps verified blocks on pause, and does not abort a slow but actively receiving transfer solely because a whole piece is unfinished.
+- Shows peer/discovery diagnostics instead of only a generic failure; limits the status area so it does not enlarge the download window.
+- Adds tracker-response fixtures and a loopback pause/resume/sharing test. Real public package download and archive integrity were verified; no drivers or software were installed.
 
-Validation: **248 fixture checks**, a delayed query over five seconds, cancellation/budget checks, matching comparison between an actual mounted ISO and disk folder, and direct EXE startup from a separately generated read-only ISO on Windows 11. No driver/software installation or restore/reboot was performed. Complete original-matcher equivalence and the XP–11 device matrix remain unfinished.
+**العربية:** إصلاح اكتشاف مصادر تنزيل التورنت وإضافة مسار HTTPS عبر ويندوز، مع الحفاظ على تحقق البصمات والاستئناف وإظهار سبب تعذر الاتصال. نجح تنزيل حزمة فعلية واختبار سلامة الأرشيف. التوفر على كل الشبكات أو لكل الحزم غير مضمون؛ النسخة ما زالت بيتا.
 
-**العربية:** إصلاح قراءة المكتبات على الأجهزة الأبطأ والـISO، ومسارات السجلات والتعرف على المكتبة بعد النقل، مع إعادة تصميم شاشة التحميل والخطأ. استبدل EXE داخل مجلد الأسطوانة ثم أعد إنشاء ISO؛ الصورة القديمة لا تتحدث تلقائيًا. النسخة تظل بيتا وتحتاج إلى استكمال اختبارات التوافق والتثبيت الفعلي.
-
-UI, development and emblem: Tarek Sadek · Diagoo1. Original DriverPack and third-party rights remain with their owners.
+Original DriverPack, third-party drivers and logos retain their owners' rights. UI/development/emblem: Tarek Sadek · Diagoo1. See repository validation and notices for remaining matcher/index/OS limitations.

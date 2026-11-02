@@ -8,6 +8,7 @@
 #include <QFileInfo>
 #include <QStorageInfo>
 #include <QThread>
+#include <QUuid>
 #include <QMutex>
 #include <QMutexLocker>
 #include <stdexcept>
@@ -122,7 +123,7 @@ void fetchPeerBlocks(const Catalog &catalog,const QVector<int> &pieces,const QSt
     std::shared_ptr<lt::torrent_info> info(new lt::torrent_info(catalog.metadata.constData(),catalog.metadata.size(),error));
     if(error)throw std::runtime_error(error.message());
     lt::settings_pack settings;
-    settings.set_str(lt::settings_pack::user_agent,"SDIO Modern verified downloads");
+    settings.set_str(lt::settings_pack::user_agent,"DriverPack Modern verified downloads");
     if(catalog.transfer.downloadKiB<0 || catalog.transfer.downloadKiB>102400 || catalog.transfer.uploadKiB<0 || catalog.transfer.uploadKiB>102400 || catalog.transfer.connections<1 || catalog.transfer.connections>200 || (catalog.transfer.port && (catalog.transfer.port<1024 || catalog.transfer.port>65535)))throw std::runtime_error("Invalid transfer settings.");
     const std::string listen=loopbackPeer.isEmpty()?QStringLiteral("0.0.0.0:%1").arg(catalog.transfer.port).toStdString():"127.0.0.1:0";
     settings.set_str(lt::settings_pack::listen_interfaces,listen);
@@ -130,17 +131,34 @@ void fetchPeerBlocks(const Catalog &catalog,const QVector<int> &pieces,const QSt
     settings.set_bool(lt::settings_pack::enable_dht,loopbackPeer.isEmpty());
     settings.set_str(lt::settings_pack::dht_bootstrap_nodes,"router.bittorrent.com:6881,router.utorrent.com:6881,router.bitcomet.com:6881");
     settings.set_int(lt::settings_pack::connections_limit,catalog.transfer.connections);settings.set_int(lt::settings_pack::upload_rate_limit,catalog.transfer.uploadKiB*1024);settings.set_int(lt::settings_pack::download_rate_limit,catalog.transfer.downloadKiB*1024);
+    settings.set_bool(lt::settings_pack::announce_to_all_tiers,true);
+    settings.set_bool(lt::settings_pack::announce_to_all_trackers,true);
     settings.set_int(lt::settings_pack::alert_mask,static_cast<int>(static_cast<std::uint32_t>(lt::alert_category::error|lt::alert_category::storage|lt::alert_category::status|lt::alert_category::piece_progress|lt::alert_category::stats)));
     if(catalog.transfer.outgoingMin){if(catalog.transfer.outgoingMin<1024 || catalog.transfer.outgoingMax<catalog.transfer.outgoingMin || catalog.transfer.outgoingMax>65535)throw std::runtime_error("Invalid outgoing port range.");settings.set_int(lt::settings_pack::outgoing_port,catalog.transfer.outgoingMin);settings.set_int(lt::settings_pack::num_outgoing_ports,catalog.transfer.outgoingMax-catalog.transfer.outgoingMin+1);}
     lt::session session(settings);
     lt::add_torrent_params params;params.ti=info;params.save_path=storage.path().toUtf8().constData();
-    params.flags=lt::torrent_flags::default_flags & ~lt::torrent_flags::paused & ~lt::torrent_flags::auto_managed;
+    params.flags=(lt::torrent_flags::default_flags & ~lt::torrent_flags::auto_managed) | lt::torrent_flags::paused;
     params.flags|=lt::torrent_flags::override_web_seeds;
+    // This XP-compatible static libtorrent has no OpenSSL. HTTPS tracker requests
+    // use the Windows TLS stack below; native HTTP/UDP discovery runs concurrently.
+    if(loopbackPeer.isEmpty()) {
+        params.flags|=lt::torrent_flags::override_trackers;
+        for(const auto &tracker:catalog.trackers)if(tracker.scheme()!=QStringLiteral("https")) {
+            params.trackers.push_back(tracker.toEncoded().toStdString());params.tracker_tiers.push_back(0);
+        }
+    }
     params.file_priorities.assign(info->num_files(),lt::dont_download);
+    params.piece_priorities.assign(info->num_pieces(),lt::dont_download);
+    for(int piece:pieces){if(piece<0 || piece>=info->num_pieces())throw std::runtime_error("Invalid requested torrent block.");params.piece_priorities[piece]=lt::top_priority;}
     // All torrent paths are remapped to inert private files. Only our separately
     // verified publisher can create .bin or .7z files in the user's directories.
     for(int i=0;i<info->num_files();++i)params.renamed_files[lt::file_index_t(i)]=QStringLiteral("data/%1.part").arg(i).toStdString();
     lt::torrent_handle handle=session.add_torrent(params,error);if(error)throw std::runtime_error(error.message());
+    if(loopbackPeer.isEmpty()) {
+        std::vector<lt::announce_entry> supported;
+        for(const auto &url:params.trackers)supported.push_back(lt::announce_entry(url));
+        handle.replace_trackers(supported);
+    }
     std::vector<lt::download_priority_t> priorities(info->num_pieces(),lt::dont_download);
     std::set<int> wanted,reading;
     for(int p:pieces){if(p<0 || p>=info->num_pieces())throw std::runtime_error("Invalid requested torrent block.");wanted.insert(p);priorities[p]=lt::top_priority;}
@@ -151,16 +169,36 @@ void fetchPeerBlocks(const Catalog &catalog,const QVector<int> &pieces,const QSt
         if(!ok || !loopbackPeer.startsWith(QStringLiteral("127.0.0.1:")) || port<1 || port>65535)throw std::runtime_error("Invalid loopback test endpoint.");
         handle.connect_peer(lt::tcp::endpoint(lt::address_v4::loopback(),static_cast<unsigned short>(port)));
     }
+    QVector<QUrl> windowsTrackers;
+    if(loopbackPeer.isEmpty())for(const auto &url:catalog.trackers)
+        if(url.scheme()==QStringLiteral("https") && windowsTrackers.size()<12)windowsTrackers.append(url);
+    const QByteArray peerId=QByteArray("-DM0222-")+QUuid::createUuid().toByteArray().replace("{","").replace("}","").replace("-","").left(12);
+    int trackerAt=0,discoveredPeers=0;
     int dhtNodes=0;QString networkError;
     QElapsedTimer idle,notice,elapsed;idle.start();notice.start();elapsed.start();
     const qint64 receivedBeforePeers=progress.received;
+    qint64 lastPayload=0;
     while(!wanted.empty()){
         if(stop.load()){handle.pause();throw std::runtime_error("Download paused. Verified blocks were kept for resuming.");}
+        const auto current=handle.status();
+        if(current.total_payload_download>lastPayload){lastPayload=current.total_payload_download;idle.restart();}
+        if(loopbackPeer.isEmpty() && current.num_peers==0 && trackerAt<windowsTrackers.size() && elapsed.elapsed()>1000) {
+            const QUrl tracker=windowsTrackers[trackerAt++];
+            progress.message=QStringLiteral("Discovering download peers via HTTPS tracker %1/%2…").arg(trackerAt).arg(windowsTrackers.size());
+            progress.diagnostic=tracker.host();if(sink)sink(progress);
+            try {
+                const auto peers=fetchTrackerPeers(tracker,catalog.infoHash,peerId,session.listen_port(),catalog.total,stop);
+                discoveredPeers+=peers.size();
+                for(const auto &peer:peers){lt::error_code endpointError;const auto address=lt::address::from_string(peer.address.toStdString(),endpointError);if(!endpointError)handle.connect_peer(lt::tcp::endpoint(address,peer.port));}
+                networkError=peers.isEmpty()?QStringLiteral("%1 returned no peers").arg(tracker.host()):QStringLiteral("%1 returned %2 peers").arg(tracker.host()).arg(peers.size());
+            } catch(const std::exception &error) { if(stop.load())throw; networkError=QString::fromUtf8(error.what()).left(400); }
+        }
         for(int p:wanted)if(!reading.count(p) && handle.have_piece(lt::piece_index_t(p))){handle.read_piece(lt::piece_index_t(p));reading.insert(p);}
         std::vector<lt::alert*> alerts;session.pop_alerts(&alerts);
         for(lt::alert *alert:alerts){
+            if(stop.load()){handle.pause();throw std::runtime_error("Download paused. Verified blocks were kept for resuming.");}
             if(const auto *tracker=lt::alert_cast<lt::tracker_error_alert>(alert)){
-                networkError=QString::fromStdString(tracker->error.message());
+                networkError=QUrl(QString::fromUtf8(tracker->tracker_url())).host()+QStringLiteral(": ")+QString::fromStdString(tracker->error.message());
             }
             if(const auto *stats=lt::alert_cast<lt::dht_stats_alert>(alert)){dhtNodes=0;for(const auto &bucket:stats->routing_table)dhtNodes+=bucket.num_nodes;}
             if(const auto *listen=lt::alert_cast<lt::listen_failed_alert>(alert))networkError=QString::fromStdString(listen->error.message());
@@ -173,13 +211,14 @@ void fetchPeerBlocks(const Catalog &catalog,const QVector<int> &pieces,const QSt
             if(!file.open(QIODevice::WriteOnly) || file.write(bytes)!=bytes.size() || !file.commit())throw std::runtime_error("Cannot save a verified peer block.");
             wanted.erase(index);reading.erase(index);recordVerifiedPiece(catalog,index,progress);progress.message=QStringLiteral("Receiving verified blocks from download peers");if(sink)sink(progress);idle.restart();
         }
-        if(notice.elapsed()>1000){session.post_dht_stats();progress.diagnostic=QStringLiteral("DHT nodes: %1; network: %2").arg(dhtNodes).arg(networkError);if(!loopbackPeer.isEmpty() && elapsed.elapsed()%5000<1200){const int port=loopbackPeer.section(QLatin1Char(':'),-1).toInt();handle.connect_peer(lt::tcp::endpoint(lt::address_v4::loopback(),static_cast<unsigned short>(port)));}const lt::torrent_status status=handle.status();if(status.errc)throw std::runtime_error(status.errc.message());progress.received=receivedBeforePeers+status.total_payload_download;progress.downloadRate=status.download_payload_rate;progress.uploadRate=status.upload_payload_rate;progress.peers=status.num_peers;
+        if(notice.elapsed()>1000){session.post_dht_stats();progress.diagnostic=QStringLiteral("DHT nodes: %1; HTTPS trackers: %2/%3; HTTPS peers: %4; last tracker: %5").arg(dhtNodes).arg(trackerAt).arg(windowsTrackers.size()).arg(discoveredPeers).arg(networkError);if(!loopbackPeer.isEmpty() && elapsed.elapsed()%5000<1200){const int port=loopbackPeer.section(QLatin1Char(':'),-1).toInt();handle.connect_peer(lt::tcp::endpoint(lt::address_v4::loopback(),static_cast<unsigned short>(port)));}const lt::torrent_status status=handle.status();if(status.errc)throw std::runtime_error(status.errc.message());progress.received=receivedBeforePeers+status.total_payload_download;progress.downloadRate=status.download_payload_rate;progress.uploadRate=status.upload_payload_rate;progress.peers=status.num_peers;
             progress.message=QStringLiteral("Peer-assisted download · %1 peers · %2 blocks remaining · %3 s").arg(status.num_peers).arg(static_cast<qulonglong>(wanted.size())).arg(elapsed.elapsed()/1000);if(sink)sink(progress);notice.restart();}
         const qint64 idleLimit=catalog.transfer.downloadKiB?qMax<qint64>(90000,qint64(catalog.pieceLength)*2000/(catalog.transfer.downloadKiB*1024)+30000):90000;
-        if(idle.elapsed()>idleLimit){handle.pause();throw std::runtime_error("No verified peer blocks arrived. Check the network or resume later; existing files were preserved.");}
+        if(idle.elapsed()>idleLimit){handle.pause();throw std::runtime_error((QStringLiteral("No verified download data arrived. Existing files and verified blocks were preserved.\n")+progress.diagnostic).toUtf8().constData());}
         session.wait_for_alert(std::chrono::milliseconds(150));
     }
     {const lt::torrent_status status=handle.status();progress.received=receivedBeforePeers+status.total_payload_download;progress.downloadRate=status.download_payload_rate;progress.uploadRate=status.upload_payload_rate;progress.peers=status.num_peers;if(sink)sink(progress);}
+    progress.diagnostic=QStringLiteral("Received blocks passed independent hash verification.");
     handle.pause();session.pause();
 #else
     Q_UNUSED(catalog);Q_UNUSED(pieces);Q_UNUSED(cache);Q_UNUSED(stop);Q_UNUSED(sink);Q_UNUSED(progress);Q_UNUSED(loopbackPeer);

@@ -39,6 +39,8 @@ if($Action -in @('Test','All')){
  Compile (Join-Path $project 'tests\maintenance_tests.pro') (Join-Path $build 'maintenance-tests')
  Compile (Join-Path $project 'tests\activity_log_tests.pro') (Join-Path $build 'activity-log-tests')
  Compile (Join-Path $project 'tests\software_tests.pro') (Join-Path $build 'software-tests')
+ $peer=Join-Path $SdkRoot 'build-torrent-static\torrent-link.pri'
+ Compile (Join-Path $project 'tests\peer_tests.pro') (Join-Path $build 'peer-tests') @(('DRIVERPACK_TORRENT_PRI='+$peer.Replace('\','/')))
  $data=Join-Path $project 'tests\data'
  Checked {& (Join-Path $build 'checks\release\DriverPackCatalogTests.exe') $data}
  Checked {& (Join-Path $build 'transfers\release\DriverPackTransferTests.exe') $data}
@@ -46,6 +48,7 @@ if($Action -in @('Test','All')){
  Checked {& (Join-Path $build 'software-tests\release\DriverPackSoftwareTests.exe')}
  Checked {& (Join-Path $build 'activity-log-tests\release\DriverPackActivityLogTests.exe')}
  Checked {& (Join-Path $build 'maintenance-tests\release\DriverPackMaintenanceTests.exe')}
+ Checked {& (Join-Path $build 'peer-tests\release\DriverPackPeerTests.exe')}
 }
 if($Action -in @('Probe','All')){
  if(-not (Test-Path -LiteralPath $exe)){throw 'Run Build first.'}

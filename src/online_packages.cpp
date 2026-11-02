@@ -81,7 +81,7 @@ QString packageCategory(const QString &name){
  if(n.contains(QStringLiteral("touchpad"))||n.contains(QStringLiteral("hid"))||n.contains(QStringLiteral("input")))return QStringLiteral("Input");
  if(n.contains(QStringLiteral("monitor")))return QStringLiteral("Monitor");if(n.contains(QStringLiteral("tv_")))return QStringLiteral("TV tuner");return QStringLiteral("Other");
 }
-QUrl officialMetadataUrl(const QString &family){Q_UNUSED(family);return QUrl(QStringLiteral("https://dl.driverpack.io/DriverPack_Update.torrent"));}
+QUrl officialMetadataUrl(const QString &family){Q_UNUSED(family);return QUrl(QStringLiteral("https://dl.driverpack.io/DriverPack-Offline.torrent"));}
 static QPair<QString,QString> packIdentity(QString name){
     name=QFileInfo(QDir::fromNativeSeparators(name)).fileName();if(name.startsWith(QStringLiteral("_P_"),Qt::CaseInsensitive))name.replace(0,3,QStringLiteral("DP_"));
     const QRegularExpression expression(QStringLiteral("^(.*)_([0-9]{4,8})\\.(?:7z|bin)$"),QRegularExpression::CaseInsensitiveOption);const auto match=expression.match(name);
@@ -129,17 +129,27 @@ Catalog parse(const QByteArray &bytes){
         if(u.scheme()!=QStringLiteral("http") && u.scheme()!=QStringLiteral("https"))continue;
         if(u.host()==QStringLiteral("www.glenn.delahoy.com"))u.setScheme(QStringLiteral("https"));if(!c.seeds.contains(u))c.seeds.append(u);
     }
+    const auto addTracker = [&](const Node &node) {
+        if(node.type!='s' || node.text.size()>2048 || c.trackers.size()>=64)return;
+        const QUrl url=QUrl::fromEncoded(node.text);
+        if(!url.isValid() || url.host().isEmpty() || !url.userInfo().isEmpty() || !url.fragment().isEmpty())return;
+        if(url.scheme()!=QStringLiteral("http") && url.scheme()!=QStringLiteral("https") && url.scheme()!=QStringLiteral("udp"))return;
+        if(!c.trackers.contains(url))c.trackers.append(url);
+    };
+    addTracker(root.dict.value("announce"));
+    const Node tiers=root.dict.value("announce-list");
+    if(tiers.type=='l')for(const auto &tier:tiers.list){if(tier.type=='l')for(const auto &url:tier.list)addTracker(url);}
     // Peer-only catalogs remain usable; the production target links the peer
     // transport, and every resulting block is independently hash checked.
     return c;
 }
 #ifdef Q_OS_WIN
 struct InternetHandle { HINTERNET value;explicit InternetHandle(HINTERNET v):value(v){}~InternetHandle(){if(value)InternetCloseHandle(value);} };
-static QByteArray get(const QUrl &url,qint64 offset,qint64 length,qint64 fileSize,const std::atomic<bool> &stop,int downloadKiB=0,const std::function<void(qint64)> &received=std::function<void(qint64)>()){
+static QByteArray get(const QUrl &url,qint64 offset,qint64 length,qint64 fileSize,const std::atomic<bool> &stop,int downloadKiB=0,const std::function<void(qint64)> &received=std::function<void(qint64)>(),qint64 responseLimit=8*1024*1024,DWORD timeoutMs=15000){
     if(!url.isValid() || url.host().isEmpty() || !url.userInfo().isEmpty() || (url.scheme()!=QStringLiteral("https") && url.scheme()!=QStringLiteral("http")))fail(QStringLiteral("Invalid download URL."));
     cancelled(stop);InternetHandle session(InternetOpenW(L"DriverPack Modern / explicit verified package download",INTERNET_OPEN_TYPE_PRECONFIG,0,0,0));
     if(!session.value)fail(QStringLiteral("Windows could not open an Internet session."));
-    DWORD timeout=15000;for(DWORD option:{INTERNET_OPTION_CONNECT_TIMEOUT,INTERNET_OPTION_SEND_TIMEOUT,INTERNET_OPTION_RECEIVE_TIMEOUT})InternetSetOptionW(session.value,option,&timeout,sizeof(timeout));
+    DWORD timeout=timeoutMs;for(DWORD option:{INTERNET_OPTION_CONNECT_TIMEOUT,INTERNET_OPTION_SEND_TIMEOUT,INTERNET_OPTION_RECEIVE_TIMEOUT})InternetSetOptionW(session.value,option,&timeout,sizeof(timeout));
     const QString header=offset>=0?QStringLiteral("Range: bytes=%1-%2\r\nAccept-Encoding: identity\r\n").arg(offset).arg(offset+length-1):QStringLiteral("Accept-Encoding: identity\r\n");
     const QString encoded=QString::fromLatin1(url.toEncoded());
     InternetHandle request(InternetOpenUrlW(session.value,reinterpret_cast<LPCWSTR>(encoded.utf16()),reinterpret_cast<LPCWSTR>(header.utf16()),header.size(),INTERNET_FLAG_RELOAD|INTERNET_FLAG_NO_CACHE_WRITE|INTERNET_FLAG_NO_UI|INTERNET_FLAG_NO_COOKIES|INTERNET_FLAG_NO_AUTH|INTERNET_FLAG_PRAGMA_NOCACHE,0));
@@ -151,15 +161,54 @@ static QByteArray get(const QUrl &url,qint64 offset,qint64 length,qint64 fileSiz
             const QString expected=QStringLiteral("bytes %1-%2/%3").arg(offset).arg(offset+length-1).arg(fileSize);
             if(QString::fromWCharArray(value).trimmed()!=expected)fail(QStringLiteral("Unexpected HTTP content range."));}
     }else if(status!=200)fail(QStringLiteral("Cannot download the update catalog (HTTP %1).").arg(status));
-    QByteArray output;const qint64 limit=offset>=0?length:8*1024*1024;char buffer[65536];DWORD read=0;
+    QByteArray output;const qint64 limit=offset>=0?length:responseLimit;char buffer[65536];DWORD read=0;
     QElapsedTimer rateClock;rateClock.start();
     for(;;){cancelled(stop);if(!InternetReadFile(request.value,buffer,sizeof(buffer),&read))fail(QStringLiteral("The network transfer failed. Verified blocks can be resumed."));if(!read)break;if(output.size()+static_cast<qint64>(read)>limit)fail(QStringLiteral("Server response exceeds the expected size."));output.append(buffer,static_cast<int>(read));if(received)received(read);if(downloadKiB>0){const qint64 due=qint64(output.size())*1000/(qint64(downloadKiB)*1024);while(rateClock.elapsed()<due){cancelled(stop);QThread::msleep(static_cast<unsigned long>(qMax<qint64>(1,qMin<qint64>(50,due-rateClock.elapsed()))));}}}
     if(offset>=0 && output.size()!=length)fail(QStringLiteral("Incomplete HTTP range response."));return output;
 }
 #else
-static QByteArray get(const QUrl&,qint64,qint64,qint64,const std::atomic<bool>&,int=0,const std::function<void(qint64)> &received=std::function<void(qint64)>()){fail(QStringLiteral("Network package downloads require Windows."));return QByteArray();}
+static QByteArray get(const QUrl&,qint64,qint64,qint64,const std::atomic<bool>&,int=0,const std::function<void(qint64)> &received=std::function<void(qint64)>(),qint64=8*1024*1024,unsigned long=15000){fail(QStringLiteral("Network package downloads require Windows."));return QByteArray();}
 #endif
 QByteArray fetchMetadata(const QUrl &url,const std::atomic<bool> &stop){if(url.isEmpty())fail(QStringLiteral("Automatic DriverPack catalog endpoint is not configured. Open a local torrent catalog instead."));if(url.scheme()!=QStringLiteral("https"))fail(QStringLiteral("Update catalogs must be fetched over HTTPS."));return get(url,-1,0,0,stop);}
+QUrl trackerAnnounceUrl(const QUrl &base,const QByteArray &hash,const QByteArray &peerId,int port,qint64 left)
+{
+    if(!base.isValid() || base.host().isEmpty() || !base.userInfo().isEmpty() || !base.fragment().isEmpty() ||
+       (base.scheme()!=QStringLiteral("https") && base.scheme()!=QStringLiteral("http")) || hash.size()!=20 || peerId.size()!=20 || port<1 || port>65535 || left<0)
+        fail(QStringLiteral("Invalid tracker request."));
+    const auto binary=[](const QByteArray &value){QByteArray out;const char hex[]="0123456789ABCDEF";for(unsigned char ch:value){out+='%';out+=hex[ch>>4];out+=hex[ch&15];}return out;};
+    QByteArray encoded=base.toEncoded();encoded+=base.hasQuery()?'&':'?';
+    encoded+="info_hash="+binary(hash)+"&peer_id="+binary(peerId)+"&port="+QByteArray::number(port)+"&uploaded=0&downloaded=0&left="+QByteArray::number(left)+"&compact=1&numwant=50&event=started";
+    return QUrl::fromEncoded(encoded);
+}
+QVector<PeerEndpoint> parseTrackerPeers(const QByteArray &bytes)
+{
+    if(bytes.isEmpty() || bytes.size()>256*1024)fail(QStringLiteral("Tracker response exceeds the size limit."));
+    Decoder decoder(bytes);const Node root=decoder.read();
+    if(root.type!='d' || !decoder.complete())fail(QStringLiteral("Invalid tracker response."));
+    if(root.dict.value("failure reason").type=='s')fail(QStringLiteral("Tracker: ")+QString::fromUtf8(root.dict.value("failure reason").text).left(256));
+    QVector<PeerEndpoint> result;QSet<QString> seen;
+    const auto append=[&](const QString &address,int port){
+        if(result.size()>=200 || port<1 || port>65535)return;
+        const auto parts=address.split(QLatin1Char('.'));if(parts.size()!=4)return;
+        int octets[4];for(int n=0;n<4;++n){bool ok=false;octets[n]=parts[n].toInt(&ok);if(!ok||octets[n]<0||octets[n]>255)return;}
+        if(octets[0]==0 || octets[0]==10 || octets[0]==127 || octets[0]>=224 || (octets[0]==169&&octets[1]==254) || (octets[0]==172&&octets[1]>=16&&octets[1]<=31) || (octets[0]==192&&octets[1]==168))return;
+        const QString normalized=QStringLiteral("%1.%2.%3.%4").arg(octets[0]).arg(octets[1]).arg(octets[2]).arg(octets[3]);
+        const QString key=normalized+QLatin1Char(':')+QString::number(port);if(seen.contains(key))return;seen.insert(key);
+        PeerEndpoint peer;peer.address=normalized;peer.port=quint16(port);result.append(peer);
+    };
+    const Node peers=root.dict.value("peers");
+    if(peers.type=='s') {
+        if(peers.text.size()%6)fail(QStringLiteral("Invalid compact tracker peers."));
+        for(int n=0;n+6<=peers.text.size();n+=6){const auto p=reinterpret_cast<const unsigned char *>(peers.text.constData()+n);append(QStringLiteral("%1.%2.%3.%4").arg(p[0]).arg(p[1]).arg(p[2]).arg(p[3]),p[4]*256+p[5]);}
+    } else if(peers.type=='l') {
+        for(const auto &peer:peers.list)if(peer.type=='d' && peer.dict.value("ip").type=='s' && peer.dict.value("port").type=='i' && peer.dict.value("port").number>=1 && peer.dict.value("port").number<=65535)append(QString::fromUtf8(peer.dict.value("ip").text),int(peer.dict.value("port").number));
+    } else if(peers.type!=0)fail(QStringLiteral("Unsupported tracker peer response."));
+    return result;
+}
+QVector<PeerEndpoint> fetchTrackerPeers(const QUrl &url,const QByteArray &hash,const QByteArray &peerId,int port,qint64 left,const std::atomic<bool> &stop)
+{
+    return parseTrackerPeers(get(trackerAnnounceUrl(url,hash,peerId,port,left),-1,0,0,stop,0,std::function<void(qint64)>(),256*1024,5000));
+}
 static QVector<int> blocks(const Catalog &c,const QVector<int> &selection){
     if(selection.isEmpty())fail(QStringLiteral("Select at least one index or driver package."));QSet<int> chosen;
     for(int index:selection){if(index<0 || index>=c.files.size() || c.files[index].kind==Other)fail(QStringLiteral("Only driver packages and indexes may be published."));const File &f=c.files[index];if(!f.size)continue;

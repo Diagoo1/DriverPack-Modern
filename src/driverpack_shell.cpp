@@ -1692,7 +1692,7 @@ void DriverPackShell::rebuild()
     connect(browse,&QPushButton::clicked,this,[this](){chooseLibrary();});body->addSpacing(12);body->addLayout(commands);
     auto centered = new QHBoxLayout;centered->addStretch(1);centered->addWidget(content,100);centered->addStretch(1);
     loading->addLayout(centered);loading->addStretch(2);
-    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.1 Beta", "تصميم وتطوير · طارق صادق  |  0.22.1 بيتا"),m_loading);
+    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.2 Beta", "تصميم وتطوير · طارق صادق  |  0.22.2 بيتا"),m_loading);
     credit->setObjectName(QStringLiteral("loadingCredit"));credit->setAlignment(Qt::AlignCenter);
     credit->setStyleSheet(QStringLiteral("font-size:13px;color:#b9e2e6;background:transparent;padding:8px;"));
     loading->addWidget(credit);
@@ -4165,6 +4165,8 @@ class DrpTransferDialog : public RoundedDialog
         status->setWordWrap(true);
         status->setObjectName(QStringLiteral("transferStatus"));
         status->setMinimumHeight(42);
+        status->setMaximumHeight(96);
+        status->setTextInteractionFlags(Qt::TextSelectableByMouse);
         transferLayout->addWidget(status);
         status->setStyleSheet(
             QStringLiteral(
@@ -4231,7 +4233,7 @@ class DrpTransferDialog : public RoundedDialog
         connect(worker, &OnlineWorker::activity, this,
                 [this](const QString &s, qint64 done, qint64 total, int published)
                 {
-                    status->setText(s);
+                    status->setText(s);status->setToolTip(s);
                     if (published)
                         changed = true;
                     if (total)
@@ -4306,6 +4308,7 @@ class DrpTransferDialog : public RoundedDialog
                                  "تعذر إكمال التنزيل. %1\nتم الاحتفاظ بالأجزاء المتحقق منها لإعادة المحاولة.")
                                   .arg(worker->error));
                 }
+                status->setToolTip(status->text());
                 status->setProperty("transferState", paused                    ? QStringLiteral("paused")
                                                      : worker->error.isEmpty() ? QStringLiteral("ready")
                                                                                : QStringLiteral("error"));
