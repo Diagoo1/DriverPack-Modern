@@ -178,6 +178,13 @@ int main(int argc, char **argv)
         report.cancelled = false;
         report.items[0].outcome = sdiomodern::Outcome::Failure;
         check(!DriverPackWorkflow::allowSoftwareAfterDrivers(report), "failed driver stops software stage");
+        sdiomodern::InstallReport restoreOnly;restoreOnly.restoreFailed=true;restoreOnly.restoreError=1058;
+        check(DriverPackWorkflow::offerDisabledRestoreChoice(restoreOnly),"disabled restore before any driver offers confirmation");
+        restoreOnly.restoreError=5;check(!DriverPackWorkflow::offerDisabledRestoreChoice(restoreOnly),"access denied does not offer disabled-restore bypass");
+        restoreOnly.restoreError=1058;restoreOnly.items.push_back(result);check(!DriverPackWorkflow::offerDisabledRestoreChoice(restoreOnly),"restore warning never retries drivers that already started");
+        restoreOnly.items.clear();restoreOnly.cancelled=true;check(!DriverPackWorkflow::offerDisabledRestoreChoice(restoreOnly),"cancelled queue does not offer retry");
+        report.items[0].outcome=sdiomodern::Outcome::Success;report.restoreSkipped=true;
+        check(DriverPackWorkflow::allowSoftwareAfterDrivers(report),"explicit restore skip permits remaining approved software after successful drivers");
         printf("%d DriverPack independence checks passed; no installation or network requests.\n", count);
         return 0;
     }

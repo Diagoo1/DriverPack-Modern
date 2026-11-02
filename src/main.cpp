@@ -51,6 +51,23 @@ struct GuiComScope
 
 int main(int argc, char **argv)
 {
+    for(int i=1;i<argc;++i)if(std::strcmp(argv[i],"--restore-point-test")==0) {
+        // An explicit maintenance probe: never enters the installation workflow.
+        GuiComScope com;
+        const auto security=sdiomodern::initializeRestoreCallbacks();
+        QCoreApplication probe(argc,argv);const auto args=probe.arguments();
+        const int at=args.indexOf(QStringLiteral("--restore-point-test"));
+        if(at+1>=args.size() || !args.contains(QStringLiteral("--confirm-create-restore-point")))return 2;
+        QJsonObject result;result.insert(QStringLiteral("comSecurity"),double(security));
+        result.insert(QStringLiteral("driverInstallationRequested"),false);
+        result.insert(QStringLiteral("restoreSettingsChanged"),false);
+        bool ok=false;
+        try{sdiomodern::OriginCore core;core.createRestorePoint(L"DriverPack Modern - authorized restore point test");ok=true;}
+        catch(const std::exception &e){result.insert(QStringLiteral("error"),QString::fromUtf8(e.what()));}
+        result.insert(QStringLiteral("restoreApiSucceeded"),ok);
+        QSaveFile output(args[at+1]);if(!output.open(QIODevice::WriteOnly) || output.write(QJsonDocument(result).toJson())<0 || !output.commit())return 3;
+        return ok?0:1;
+    }
     for (int i = 1; i < argc; ++i)
         if (std::strcmp(argv[i], "--hardware-report") == 0)
             return runHardwareReport(argc, argv);
@@ -62,7 +79,7 @@ int main(int argc, char **argv)
     {
         if (std::strcmp(argv[i], "--version") == 0)
         {
-            fprintf(stdout, "DriverPack Modern 0.22.3 Beta | UI by Tarek Sadek\n");
+            fprintf(stdout, "DriverPack Modern 0.22.4 Beta | UI by Tarek Sadek\n");
             return 0;
         }
         if (std::strcmp(argv[i], "--scan-report") == 0)
@@ -116,7 +133,7 @@ int main(int argc, char **argv)
     // Verifiable release identity: scripts can reject stale executables.
     if (app.arguments().contains(QStringLiteral("--version")))
     {
-        fprintf(stdout, "DriverPack Modern 0.22.3 Beta | UI by Tarek Sadek\n");
+        fprintf(stdout, "DriverPack Modern 0.22.4 Beta | UI by Tarek Sadek\n");
         fflush(stdout);
         return 0;
     }

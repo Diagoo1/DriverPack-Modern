@@ -127,3 +127,12 @@ Technical details below are a diagnostic preview, not an actual installation fai
 <table><tr><td><img src="screenshots/recovery/library-reading.png" alt="Full-window library reading"></td><td><img src="screenshots/recovery/library-error.png" alt="Copyable error details and recovery buttons"></td></tr></table>
 
 <table><tr><td><img src="screenshots/recovery/library-reading-ar.png" alt="صفحة التحميل كاملة بالعربية"></td><td><img src="screenshots/recovery/library-error-ar.png" alt="صفحة استرداد الأخطاء بالعربية"></td></tr></table>
+
+## 0.22.4 result and restore-warning previews / معاينة النتائج والتحذير
+
+These are simulated UI states. No driver was installed for these images.
+
+<table><tr><td><img src="screenshots/en-light/14-result-preview.png" alt="Result preview"></td><td><img src="screenshots/en-light/15-restore-warning-preview.png" alt="Restore warning preview"></td></tr></table>
+<table><tr><td><img src="screenshots/en-dark/14-result-preview.png" alt="Result preview"></td><td><img src="screenshots/en-dark/15-restore-warning-preview.png" alt="Restore warning preview"></td></tr></table>
+<table><tr><td><img src="screenshots/ar-light/14-result-preview.png" alt="Result preview"></td><td><img src="screenshots/ar-light/15-restore-warning-preview.png" alt="Restore warning preview"></td></tr></table>
+<table><tr><td><img src="screenshots/ar-dark/14-result-preview.png" alt="Result preview"></td><td><img src="screenshots/ar-dark/15-restore-warning-preview.png" alt="Restore warning preview"></td></tr></table>

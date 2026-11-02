@@ -122,3 +122,5 @@ SOURCES += src/activity_log.cpp src/activity_log_data.cpp
 HEADERS += src/activity_log.h
 
 HEADERS += native/device_installer.h
+
+HEADERS += native/restore_status.h

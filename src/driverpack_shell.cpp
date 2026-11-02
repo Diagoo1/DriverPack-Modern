@@ -1692,7 +1692,7 @@ void DriverPackShell::rebuild()
     connect(browse,&QPushButton::clicked,this,[this](){chooseLibrary();});body->addSpacing(12);body->addLayout(commands);
     auto centered = new QHBoxLayout;centered->addStretch(1);centered->addWidget(content,100);centered->addStretch(1);
     loading->addLayout(centered);loading->addStretch(2);
-    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.3 Beta", "تصميم وتطوير · طارق صادق  |  0.22.3 بيتا"),m_loading);
+    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.4 Beta", "تصميم وتطوير · طارق صادق  |  0.22.4 بيتا"),m_loading);
     credit->setObjectName(QStringLiteral("loadingCredit"));credit->setAlignment(Qt::AlignCenter);
     credit->setStyleSheet(QStringLiteral("font-size:13px;color:#b9e2e6;background:transparent;padding:8px;"));
     loading->addWidget(credit);
@@ -5425,6 +5425,8 @@ void DriverPackShell::installationPage()
     m_installText =
         copy(t("Preparing the selected items…", "جارٍ تجهيز العناصر المحددة…"), m_install, "largeCaption");
     box->addWidget(m_installText);
+    auto restoreNotice=copy(t("System Restore is disabled. Continuing without a restore point after your confirmation.","استعادة النظام معطّلة. تجري المتابعة بدون نقطة استعادة بعد موافقتك."),m_install);
+    restoreNotice->setObjectName(QStringLiteral("restoreBypassNotice"));restoreNotice->setStyleSheet(QStringLiteral("background:%1;color:%2;border:1px solid #d8ac4f;border-radius:12px;padding:14px;font-size:14px;").arg(m_dark?QStringLiteral("#403924"):QStringLiteral("#fff4d8"),m_dark?QStringLiteral("#ffe2a1"):QStringLiteral("#79541a")));restoreNotice->hide();box->addWidget(restoreNotice);
     m_installBar = new QProgressBar(m_install);
     m_installBar->setRange(0, 0);
     box->addWidget(m_installBar);
@@ -5593,6 +5595,7 @@ void DriverPackShell::startInstall()
     m_downloadOnly = false;
     m_resultDownloadOnly = false;
     m_restoreFailed = false;
+    m_restoreSkipped = false;
     m_error.clear();
     m_resultNames = names;
     m_resultStates.clear();
@@ -5624,6 +5627,7 @@ void DriverPackShell::startInstall()
             return;
         }
         applyOptions();
+        m_activeInstallPlan=plan;
         m_installing = true;
         if (!m_engine->requestInstallation(plan))
         {
@@ -5664,6 +5668,7 @@ void DriverPackShell::nativeProgress(const sdiomodern::Event &e)
         m_installBar->setRange(0, 1000);
         m_installBar->setValue(e.done * 1000 / e.total);
     }
+    if(e.stage==sdiomodern::Stage::RestorePoint && e.outcome==sdiomodern::Outcome::Skipped){m_restoreSkipped=true;if(auto notice=m_install->findChild<QLabel*>(QStringLiteral("restoreBypassNotice")))notice->show();}
     const QString id = QString::fromStdWString(e.deviceId);
     if (e.stage == sdiomodern::Stage::RestorePoint && m_installItemMap.contains(QStringLiteral("restore")))
         m_installItemMap.value(QStringLiteral("restore"))->setText(1, t("Creating…", "جارٍ الإنشاء…"));
@@ -5683,18 +5688,44 @@ void DriverPackShell::nativeProgress(const sdiomodern::Event &e)
                             (m_elapsed.elapsed() - m_itemStarted.value(id, m_elapsed.elapsed())) / 1000));
     }
 }
+bool DriverPackShell::confirmWithoutRestore(const QString &captureFile)
+{
+    RoundedDialog dialog(this);dialog.setObjectName(QStringLiteral("disabledRestoreConfirmation"));
+    dialog.resize(qMin(620,width()-40),330);
+    auto frame=new QVBoxLayout(&dialog);frame->setContentsMargins(0,0,0,0);frame->setSpacing(0);
+    frame->addWidget(new DialogHeader(t("Restore point unavailable","نقطة الاستعادة غير متاحة"),QStringLiteral("shield"),&dialog,m_arabic));
+    auto content=new QWidget(&dialog);auto box=new QVBoxLayout(content);box->setContentsMargins(22,20,22,22);box->setSpacing(18);frame->addWidget(content);
+    auto notice=copy(t("System Restore is disabled in Windows. A restore point could not be created. No driver has been installed yet.\n\nContinue installing the selected drivers without a restore point? You can cancel and enable System Protection first.","استعادة النظام معطّلة في إعدادات ويندوز، لذلك لم تُنشأ نقطة استعادة. لم يبدأ تثبيت أي تعريف بعد.\n\nهل تريد متابعة تثبيت التعريفات المحددة بدون نقطة استعادة؟ يمكنك الإلغاء وتفعيل حماية النظام أولًا."),content);
+    notice->setObjectName(QStringLiteral("restoreWarningNotice"));notice->setStyleSheet(QStringLiteral("background:%1;color:%2;border:1px solid #d8ac4f;border-radius:12px;padding:16px;font-size:14px;").arg(m_dark?QStringLiteral("#403924"):QStringLiteral("#fff7e4"),m_dark?QStringLiteral("#ffe2a1"):QStringLiteral("#775117")));box->addWidget(notice);
+    auto buttons=new QHBoxLayout;buttons->setSpacing(12);
+    auto cancel=action(t("Cancel","إلغاء"),content);auto proceed=action(t("Continue without restore point","المتابعة بدون نقطة استعادة"),content,true);
+    for(auto b:{cancel,proceed}){b->setFixedHeight(48);b->setStyleSheet(QStringLiteral("font-size:14px;font-weight:600;padding:0 12px;border-radius:12px;"));buttons->addWidget(b,1);}
+    cancel->setDefault(true);proceed->setAutoDefault(false);
+    connect(cancel,&QPushButton::clicked,&dialog,&QDialog::reject);connect(proceed,&QPushButton::clicked,&dialog,&QDialog::accept);box->addLayout(buttons);
+    if(m_capture && !captureFile.isEmpty())QTimer::singleShot(80,&dialog,[&dialog,captureFile](){dialog.grab().save(captureFile);dialog.reject();});
+    return dialog.exec()==QDialog::Accepted;
+}
 void DriverPackShell::nativeFinished(const sdiomodern::InstallReport &r)
 {
     m_installing = false;
     m_activeItem.clear();
+    if(DriverPackWorkflow::offerDisabledRestoreChoice(r) && !m_activeInstallPlan.continueOnRestoreFailure && !m_capture && !m_demo) {
+        if(confirmWithoutRestore()) {
+            m_activeInstallPlan.continueOnRestoreFailure=true;m_restoreFailed=false;m_error.clear();m_installing=true;
+            if(m_engine->requestInstallation(m_activeInstallPlan))return;
+            m_installing=false;
+        }
+    }
+    m_restoreSkipped=r.restoreSkipped;
     if (m_installItemMap.contains(QStringLiteral("restore")))
         m_installItemMap.value(QStringLiteral("restore"))
             ->setText(1, r.restoreCreated  ? t("Created", "تم الإنشاء")
+                         : r.restoreSkipped ? t("Skipped after confirmation","تم التخطي بعد الموافقة")
                          : r.restoreFailed ? t("Failed", "فشل")
                                            : t("Not created", "لم تُنشأ"));
     m_lastReboot = r.rebootRequired;
     m_restoreFailed = r.restoreFailed;
-    m_error = QString::fromStdWString(r.error);
+    m_error = QString::fromStdWString(r.restoreSkipped?r.warning:r.error);
     m_resultFailed = !DriverPackWorkflow::allowSoftwareAfterDrivers(r);
     for (const auto &item : r.items)
     {
@@ -5937,29 +5968,34 @@ void DriverPackShell::finalPage()
         qDeleteAll(m_final->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly));
         delete m_final->layout();
     }
+    m_final->setObjectName(QStringLiteral("operationResultPage"));
+    m_final->setAttribute(Qt::WA_StyledBackground,true);
+    m_final->setStyleSheet(QStringLiteral("QWidget#operationResultPage{background:%1;}").arg(Theme::color("background",m_dark).name()));
     auto box = new QVBoxLayout(m_final);
-    box->setContentsMargins(80, 50, 80, 45);
-    box->setSpacing(24);
-    auto symbol = copy(m_resultFailed ? QStringLiteral("!") : QStringLiteral("✓"), m_final, "startTitle");
-    symbol->setAlignment(Qt::AlignCenter);
-    symbol->setStyleSheet(QStringLiteral("font-size:82px;color:%1;")
-                              .arg(m_resultFailed ? QStringLiteral("#e59b39") : QStringLiteral("#00b5a6")));
-    box->addWidget(symbol);
-    auto title = copy(
-        m_capture
-            ? t("Result screen preview — no installation performed", "معاينة شاشة النتائج — لم يُنفّذ تثبيت")
-        : m_resultDownloadOnly ? (m_resultFailed ? t("Offline download completed with errors",
-                                                     "اكتمل التنزيل الأوفلاين مع أخطاء")
-                                                 : t("Offline software is ready", "البرامج الأوفلاين جاهزة"))
-        : m_resultFailed
-            ? t("Computer configuring completed with errors", "اكتمل إعداد الكمبيوتر مع وجود أخطاء")
-            : t("Computer configuring completed", "اكتمل إعداد الكمبيوتر"),
-        m_final, "startTitle");
-    title->setAlignment(Qt::AlignCenter);
-    box->addWidget(title);
-    if (!m_error.isEmpty())
-        box->addWidget(copy(m_error, m_final, "caption"));
+    box->setContentsMargins(28,24,28,24);
+    box->setSpacing(16);
+    auto hero=new AccentCard(m_final);
+    hero->setStyleSheet(QStringLiteral("QLabel{color:white;background:transparent;} QLabel#caption{color:#c4ebec;}"));
+    auto summary=new QHBoxLayout(hero);summary->setContentsMargins(24,22,24,22);summary->setSpacing(18);
+    auto symbol=new QLabel(hero);symbol->setPixmap(VectorIcons::pixmap(m_restoreFailed?QStringLiteral("shield"):m_resultFailed?QStringLiteral("alert"):QStringLiteral("check"),QColor("#d2faf4"),40));
+    symbol->setFixedSize(48,48);symbol->setAlignment(Qt::AlignCenter);summary->addWidget(symbol);
+    auto labels=new QVBoxLayout;labels->setSpacing(7);
+    const QString heading=m_capture?t("Result screen preview — no installation performed","معاينة النتائج — لم يُنفّذ تثبيت"):
+        m_restoreFailed?t("Installation paused: restore point unavailable","التثبيت متوقف: تعذّر إنشاء نقطة الاستعادة"):
+        m_resultFailed?t("Operation completed with errors","انتهت العملية مع أخطاء"):m_restoreSkipped?t("Completed without a restore point","اكتمل بدون نقطة استعادة"):t("Operation completed","اكتملت العملية");
+    auto title=copy(heading,hero,"title");title->setStyleSheet(QStringLiteral("font-size:24px;font-weight:600;color:white;"));labels->addWidget(title);
+    labels->addWidget(copy(m_restoreFailed?t("No driver was installed. Review the details below before trying again.","لم يُثبّت أي تعريف. راجع التفاصيل أدناه قبل إعادة المحاولة."):
+        m_resultDownloadOnly?t("Selected packages saved for offline use.","حُفظت الحزم المحددة للاستخدام الأوفلاين."):
+        t("Review each item and refresh the device list.","راجع نتيجة كل عنصر وحدّث قائمة الأجهزة."),hero,"caption"));
+    summary->addLayout(labels,1);box->addWidget(hero);
+    if(!m_error.isEmpty()) {
+        auto notice=new SurfaceCard(m_final);auto textBox=new QVBoxLayout(notice);textBox->setContentsMargins(18,14,18,14);
+        auto details=copy(m_error,notice);details->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        details->setStyleSheet(QStringLiteral("font-size:14px;"));textBox->addWidget(details);box->addWidget(notice);
+    }
     auto results = new ProjectTable(m_final);
+    results->setObjectName(QStringLiteral("operationResults"));
+    results->setMinimumHeight(160);
     results->setRootIsDecorated(false);
     results->setHeaderLabels(QStringList() << t("Item", "العنصر") << t("Result", "النتيجة"));
     results->header()->setSectionResizeMode(0, QHeaderView::Stretch);
@@ -5969,14 +6005,15 @@ void DriverPackShell::finalPage()
         row->setText(0, m_resultNames.value(it.value()));
         row->setText(1, m_resultStates.value(it.key(), t("Not started", "لم يبدأ")));
     }
+    results->setMaximumHeight(qBound(160,(m_resultRows.size()+1)*48+24,360));
     box->addWidget(results, 1);
+    box->addStretch(1);
     box->addWidget(
-        copy(m_resultDownloadOnly
+        copy(m_restoreFailed ? t("The queue stopped before installation. Restore point settings have not been changed.","توقفت قائمة التثبيت قبل البدء. لم تُغيّر إعدادات نقطة الاستعادة.") : m_resultDownloadOnly
                  ? t("Packages were saved for offline use. No installer was started.",
                      "حُفظت الحزم للاستخدام الأوفلاين. لم يتم تشغيل أي مثبت.")
-                 : t("Software setup completion is not an installed-program guarantee. Registered state "
-                     "is re-read from Windows.",
-                     "انتهاء مثبت البرنامج لا يضمن تسجيل تثبيته. تُقرأ الحالة المسجلة مجددًا من ويندوز."),
+                 : m_restoreSkipped?t("You confirmed installation without a restore point. Refresh to read the actual device state.","وافقت على التثبيت بدون نقطة استعادة. حدّث القائمة لقراءة الحالة الفعلية للأجهزة.")
+                 : t("Refresh to read the actual device and software state from Windows.","حدّث القائمة لقراءة الحالة الفعلية للأجهزة والبرامج من ويندوز."),
              m_final, "caption"));
     auto commands = new QHBoxLayout;
     auto back = action(m_resultDownloadOnly ? t("Return to offline packages", "العودة لحزم الأوفلاين")
@@ -5993,12 +6030,14 @@ void DriverPackShell::finalPage()
                 m_page = 0;
                 beginScan();
             });
+    back->setIcon(VectorIcons::icon(QStringLiteral("refresh"),Qt::white,20));
     commands->addWidget(back);
     if (m_restoreFailed)
     {
         auto protection = action(t("System Protection", "حماية النظام"), m_final);
         connect(protection, &QPushButton::clicked, this,
                 [this]() { windowsTool(QStringLiteral("SystemPropertiesProtection.exe")); });
+        protection->setIcon(VectorIcons::icon(QStringLiteral("shield"),QColor("#00aaa9"),20));
         commands->addWidget(protection);
     }
     if (m_lastReboot && m_settings->value(QStringLiteral("installation/rebootAfter"), false).toBool())
@@ -6017,6 +6056,14 @@ void DriverPackShell::finalPage()
                 });
         commands->addWidget(restart);
     }
+    commands->setSpacing(12);
+    for(int i=0;i<commands->count();++i)if(auto button=qobject_cast<QPushButton*>(commands->itemAt(i)->widget())) {
+        button->setFixedHeight(52);button->setMinimumWidth(0);button->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
+        QFont f=button->font();f.setPixelSize(15);f.setWeight(QFont::DemiBold);button->setFont(f);
+        button->setStyleSheet(QStringLiteral("font-size:15px;font-weight:600;padding:0 16px;border-radius:12px;"));
+        button->setIconSize(QSize(20,20));button->setProperty("resultAction",true);
+        commands->setStretch(i,1);
+    }
     box->addLayout(commands);
     m_root->setCurrentWidget(m_final);
 }
@@ -6026,6 +6073,21 @@ int DriverPackShell::capture(const QString &folder)
         return 50;
     setAttribute(Qt::WA_DontShowOnScreen);
     show();
+    if(QCoreApplication::arguments().contains(QStringLiteral("--capture-result-states"))) {
+        QDir().mkpath(folder);
+        for(const QString &locale:{QStringLiteral("english"),QStringLiteral("arabic")})for(bool dark:{false,true}) {
+            applyLanguage(locale);m_themeMode=dark?QStringLiteral("dark"):QStringLiteral("light");appearance();m_restoreFailed=true;m_resultFailed=true;m_lastReboot=false;
+            m_error=t("Preview: System Restore is disabled. No driver was installed. (Windows 1058)","معاينة: استعادة النظام معطّلة. لم يُثبّت أي تعريف. (ويندوز 1058)");
+            m_resultRows.clear();m_resultNames.clear();m_resultStates.clear();
+            m_resultRows.insert(QStringLiteral("preview"),0);m_resultNames.insert(0,t("Layout preview — no installation started","معاينة التنسيق — لم يبدأ التثبيت"));
+            finalPage();events(100);
+            QList<QPushButton*> buttons;for(auto b:m_final->findChildren<QPushButton*>())if(b->property("resultAction").toBool())buttons.append(b);
+            if(buttons.size()!=2 || buttons[0]->height()!=52 || buttons[1]->height()!=52 || qAbs(buttons[0]->width()-buttons[1]->width())>1)return 160;
+            grab().save(QDir(folder).filePath(locale+(dark?QStringLiteral("-dark.png"):QStringLiteral("-light.png"))));
+            if(confirmWithoutRestore(QDir(folder).filePath(locale+(dark?QStringLiteral("-warning-dark.png"):QStringLiteral("-warning-light.png")))))return 161;
+        }
+        return 0;
+    }
     const bool restartPreference =
         m_settings->value(QStringLiteral("installation/rebootAfter"), false).toBool();
     m_lastReboot = true;
@@ -6190,11 +6252,13 @@ int DriverPackShell::capture(const QString &folder)
             expert(0);
             const bool wasCompact = m_side->width() < 100;
             toggleSidebar();
-            events(320);
-            if ((m_side->width() < 100) == wasCompact)
+            for(int wait=0;wait<100 && ((m_side->width()<100)==wasCompact);++wait)events(20);
+            if ((m_side->width() < 100) == wasCompact) {
+                QFile debug(QDir(folder).filePath(QStringLiteral("sidebar-failure.json")));if(debug.open(QIODevice::WriteOnly)){QJsonObject row;row.insert(QStringLiteral("width"),m_side->width());row.insert(QStringLiteral("minimum"),m_side->minimumWidth());row.insert(QStringLiteral("maximum"),m_side->maximumWidth());row.insert(QStringLiteral("wasCompact"),wasCompact);row.insert(QStringLiteral("windowWidth"),width());debug.write(QJsonDocument(row).toJson());}
                 return 58;
+            }
             toggleSidebar();
-            events(320);
+            for(int wait=0;wait<100 && ((m_side->width()<100)!=wasCompact);++wait)events(20);
             if ((m_side->width() < 100) != wasCompact || !m_nav.value(0)->isChecked())
                 return 59;
             QFile timing(QDir(folder).filePath(QStringLiteral("interaction-check.json")));
@@ -7015,6 +7079,13 @@ int DriverPackShell::capture(const QString &folder)
             finalPage();
             events(80);
             grab().save(QDir(root).filePath(QStringLiteral("result-preview.png")));
+            m_restoreFailed=true;m_resultFailed=true;
+            m_error=t("Preview: Windows could not create the required restore point. No driver was installed. (Windows 1058)","معاينة: تعذّر إنشاء نقطة الاستعادة المطلوبة. لم يُثبّت أي تعريف. (ويندوز 1058)");
+            finalPage();events(80);
+            QList<QPushButton*> resultButtons;for(auto b:m_final->findChildren<QPushButton*>())if(b->property("resultAction").toBool())resultButtons.append(b);
+            if(resultButtons.size()!=2 || resultButtons[0]->height()!=52 || resultButtons[1]->height()!=52 || qAbs(resultButtons[0]->width()-resultButtons[1]->width())>1)return 160;
+            grab().save(QDir(root).filePath(QStringLiteral("result-restore-failure-preview.png")));
+            m_restoreFailed=false;m_resultFailed=false;m_error.clear();
         }
     }
     if (dragChecks < 4 || cellChecks < 4 || expansionChecks < 4)

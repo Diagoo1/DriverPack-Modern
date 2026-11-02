@@ -1,5 +1,6 @@
 #include "../native/driverpack_catalog.h"
 #include "../native/origin_api.h"
+#include "../native/restore_status.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QTemporaryDir>
@@ -237,6 +238,15 @@ int main(int argc, char **argv)
         check(distinctRows.size() == 4 && identity.size() == 4,
               "different hardware records sharing an INF section retain distinct identities");
 
+        check(driverpack::restoreStatus(true,0,1058)==0,"successful restore ignores stale Win32 last-error");
+        check(driverpack::restoreStatus(false,1058,0)==1058,"restore disabled status is preserved");
+        check(driverpack::restoreStatus(false,0,5)==5,"restore failure preserves immediate Win32 error");
+        check(driverpack::restoreStatus(false,0,0)==31,"failed restore cannot become Windows error zero");
+        check(driverpack::restoreStatus(true,1058,0)==1058,"nonzero restore status rejects apparent API success");
+        check(!driverpack::allowDisabledRestoreBypass(false,1058),"disabled restore cannot be bypassed without explicit confirmation");
+        check(driverpack::allowDisabledRestoreBypass(true,1058),"explicit consent permits disabled-restore bypass");
+        check(!driverpack::allowDisabledRestoreBypass(true,5),"access denied cannot be bypassed as disabled restore");
+        check(!driverpack::allowDisabledRestoreBypass(true,1460),"timeout cannot be bypassed as disabled restore");
         sdiomodern::Snapshot snapshot;
         snapshot.generation = 9;
         snapshot.capabilities.nativeCore = true;

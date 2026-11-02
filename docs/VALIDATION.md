@@ -1,12 +1,12 @@
 # Beta validation
 
-Version **0.22.3**. Seven fixture suites pass **275 checks**, plus a loopback-only peer transport suite: catalog/selection 86, transfer data 34, independence 37, software adapter 62, cleanup 35, activity-log parser 7, mocked exact-device installer 14. Fixture tests do not install software or modify a production library.
+Version **0.22.4**. Seven fixture suites pass **289 checks**, plus a loopback-only peer transport suite: catalog/selection 95, transfer data 34, independence 42, software adapter 62, cleanup 35, activity-log parser 7, mocked exact-device installer 14. Fixture tests do not install software or modify a production library.
 
 The x86 executable links Qt and transport statically. PE auditing found only Windows system DLLs and no known post-XP imports among 662 imported functions. The embedded x64 installation helper is generated from included source.
 
 Native UI capture verifies selection, toggles, alternatives, navigation, scrolling, languages and themes on the development machine. The public gallery uses illustrative data, in English/Arabic and light/dark modes. Its installation view is explicitly a preview.
 
-**Unverified:** a complete XP–11 x86/x64 device/VM matrix; actual driver/software installations, restore-point creation and reboot; compatibility across all public networks/ISPs; every original DriverPack matching exception. This Beta should not be described as production-ready or fully equivalent to DriverPack. No actual installation was performed to produce screenshots.
+**Unverified:** a complete XP–11 x86/x64 device/VM matrix; actual driver/software installations and reboot; restore behavior across all target systems (one authorized Windows 11 creation test is documented below); compatibility across all public networks/ISPs; every original DriverPack matching exception. This Beta should not be described as production-ready or fully equivalent to DriverPack. No actual installation was performed to produce screenshots.
 
 ## 0.22.1 optical-media regression checks
 
@@ -25,3 +25,13 @@ This validates two real public package downloads, not availability of every torr
 The supplied latest Chipset archive reproduces the former 512 MiB aggregate decoder allocation failure. The archive independently passes an integrity test. With the bounded decoder budget corrected, actual Intel Participant and Updater entries extract and pass Windows compatible-node enumeration for their exact device instance and version. Voice Clarity also passes using the exact catalog INF contained in the newer same-family archive. These probes explicitly disable staging and installation. Mocked installer tests cover exact-instance dispatch, selected-version/INF checks, missing devices, failed installs and unavailable APIs. XP-era systems retain the unique-hardware-ID guard; modern systems use dynamically resolved DiInstallDevice. No shared-ID-wide fallback occurs after an instance install fails.
 
 The library still references DP_xVirtual_26044.7z, which is absent from the supplied library; it is not replaced with an unrelated package. Actual installation on the reported second device remains to be confirmed by the user.
+
+## 0.22.4 restore-point diagnostics and result page
+
+The DriverPack adapter's restore callback initializer was a no-op. It now initializes process-wide COM security before the UI, with explicit access for the current user, Administrators, System, LocalService and NetworkService. A typed failure preserves the immediate System Restore/Win32 code across cleanup and logging. Five pure regression checks cover reported errors, stale last-error and false calls with error zero.
+
+An explicitly user-authorized elevated restore-only test was performed on Windows 11. COM security initialized successfully, but the actual restore call returned Windows 1058 (System Restore disabled). The test did not install a driver or alter System Protection settings. After the user explicitly authorized enabling protection only for the Windows drive, a second real restore-only test succeeded. Windows Application event 8194 independently confirms creation of the named test restore point. No driver was installed, no restore points were deleted, and other drives were not changed.
+
+The result page distinguishes a blocked restore point from completed installation errors. Result actions share equal width, 52-pixel height, typography and spacing; the table height is bounded by item count. Native capture asserts result-action geometry and includes a labelled simulated restore-failure page in English/Arabic and light/dark themes. A sidebar animation check waits for its state with a bounded deadline rather than assuming a busy frame finishes within exactly 320 ms.
+
+For Windows error 1058 only, the UI now offers a yellow explicit Continue/Cancel dialog before any driver starts. Cancel/Escape/window-close do not retry. Confirmed continuation retries the same validated plan with a per-operation flag; the backend allows this exception only for disabled System Restore. Other restore errors remain blocking. Pure policy/workflow tests cover consent, error classification, already-started items and cancellation. The bypass itself was tested through policy fixtures and simulated UI, not by disabling protection again or installing a driver.

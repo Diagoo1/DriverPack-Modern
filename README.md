@@ -4,7 +4,7 @@
   <p><strong>Your offline library. A clearer Windows experience.</strong></p>
   <p>A native desktop interface for DriverPack libraries — without the original advertising interface.<br>Designed and developed by <strong>Tarek Sadek · Diagoo1</strong></p>
   <p>
-    <a href="https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.3"><img src="https://img.shields.io/badge/Download-0.22.3_Beta-008D86?style=for-the-badge" alt="Download Beta"></a>
+    <a href="https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.4"><img src="https://img.shields.io/badge/Download-0.22.4_Beta-008D86?style=for-the-badge" alt="Download Beta"></a>
     <img src="https://img.shields.io/badge/License-GPL--3.0-075266?style=for-the-badge" alt="GPL 3">
     <img src="https://img.shields.io/badge/Desktop-C%2B%2B_%2F_Qt-075266?style=for-the-badge" alt="C++ and Qt">
   </p>
@@ -48,7 +48,7 @@ No software is selected automatically. Original JavaScript, advertising hooks an
 
 ## Get started
 
-1. Download **DriverPackModern.exe** from the [Beta release](https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.3).
+1. Download **DriverPackModern.exe** from the [Beta release](https://github.com/Diagoo1/DriverPack-Modern/releases/tag/v0.22.4).
 2. Place it beside a compatible DriverPack library, keeping this structure:
 
 ```text
@@ -74,7 +74,7 @@ The release does **not** bundle DriverPack's library or third-party applications
 - The matching adapter does not yet implement every original rule, dependency ordering, special installer hook or duplicate-device exception. Unsupported candidates remain ineligible with an explanation.
 - Downloading newer driver archives alone does not update `db.sqlite`. Refreshing an index bundled inside an original application archive is not implemented.
 - Original cloud classification, accounts, saved-machine matching and SQLite rebuilding are unavailable.
-- Windows XP–11 and x86/x64 are targets, **not a completed compatibility certification**. Real installation, restore/reboot and a complete device/VM matrix still need validation.
+- Windows XP–11 and x86/x64 are targets, **not a completed compatibility certification**. Actual driver/software installation, reboot and a complete device/VM matrix still need validation. One Windows 11 restore-point test succeeded with explicit user authorization; see validation details.
 - New interface descriptions may fall back to English in languages with incomplete dictionaries.
 
 ## Documentation

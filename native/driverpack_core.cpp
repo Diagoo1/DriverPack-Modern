@@ -21,9 +21,12 @@
 #include <QUuid>
 #include <windows.h>
 #include <sddl.h>
+#include <aclapi.h>
+#include <objbase.h>
 #include <setupapi.h>
 #include <newdev.h>
 #include "device_installer.h"
+#include "restore_status.h"
 #include <SRRestorePtAPI.h>
 #include <algorithm>
 #include <cmath>
@@ -252,8 +255,22 @@ struct OriginCore::Impl
     QString database;
     Stamp databaseStamp;
 };
-std::uint32_t initializeRestoreCallbacks() { return 0; }
-OriginCore::OriginCore() : m(new Impl) {}
+static HRESULT restoreComSecurity(){
+    static const HRESULT cached=[](){ HRESULT result=S_OK;
+    SID_IDENTIFIER_AUTHORITY nt=SECURITY_NT_AUTHORITY;PSID sids[4]={};
+    const DWORD rids[3]={SECURITY_LOCAL_SYSTEM_RID,SECURITY_LOCAL_SERVICE_RID,SECURITY_NETWORK_SERVICE_RID};
+    EXPLICIT_ACCESSW entries[5]={};PACL acl=0;SECURITY_DESCRIPTOR descriptor={};BYTE user[256]={};DWORD required=0;HANDLE token=0;
+    bool ready=AllocateAndInitializeSid(&nt,2,SECURITY_BUILTIN_DOMAIN_RID,DOMAIN_ALIAS_RID_ADMINS,0,0,0,0,0,0,&sids[0])!=FALSE;
+    for(int i=0;i<3 && ready;++i)ready=AllocateAndInitializeSid(&nt,1,rids[i],0,0,0,0,0,0,0,&sids[i+1])!=FALSE;
+    if(ready){ready=OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token) && GetTokenInformation(token,TokenUser,user,sizeof(user),&required);if(token)CloseHandle(token);}
+    if(ready){for(int i=0;i<5;++i){entries[i].grfAccessPermissions=3;entries[i].grfAccessMode=SET_ACCESS;entries[i].grfInheritance=NO_INHERITANCE;entries[i].Trustee.TrusteeForm=TRUSTEE_IS_SID;entries[i].Trustee.TrusteeType=TRUSTEE_IS_UNKNOWN;entries[i].Trustee.ptstrName=static_cast<LPWSTR>(i<4?sids[i]:reinterpret_cast<TOKEN_USER*>(user)->User.Sid);}
+        const DWORD status=SetEntriesInAclW(5,entries,0,&acl);if(status!=ERROR_SUCCESS)SetLastError(status);ready=status==ERROR_SUCCESS && InitializeSecurityDescriptor(&descriptor,SECURITY_DESCRIPTOR_REVISION) && SetSecurityDescriptorOwner(&descriptor,reinterpret_cast<TOKEN_USER*>(user)->User.Sid,FALSE) && SetSecurityDescriptorGroup(&descriptor,sids[0],FALSE) && SetSecurityDescriptorDacl(&descriptor,TRUE,acl,FALSE);
+    }
+    result=ready?CoInitializeSecurity(&descriptor,-1,0,0,RPC_C_AUTHN_LEVEL_PKT_PRIVACY,RPC_C_IMP_LEVEL_IMPERSONATE,0,EOAC_NONE,0):HRESULT_FROM_WIN32(GetLastError()?GetLastError():ERROR_GEN_FAILURE);
+    if(acl)LocalFree(acl);for(PSID sid:sids)if(sid)FreeSid(sid);return result; }(); return cached;
+}
+std::uint32_t initializeRestoreCallbacks() { return static_cast<std::uint32_t>(restoreComSecurity()); }
+OriginCore::OriginCore() : m(new Impl) { initializeRestoreCallbacks(); }
 OriginCore::~OriginCore() {}
 Capabilities OriginCore::capabilities() const
 {
@@ -505,10 +522,17 @@ Snapshot OriginCore::scan(const Paths &paths, const EventSink &sink)
     return snapshot;
 }
 void OriginCore::setOperationOptions(const Paths &paths) { m->paths = paths; }
+class RestorePointError : public std::runtime_error { public: DWORD code; RestorePointError(const QString &message,DWORD error):std::runtime_error(message.toUtf8().constData()),code(error){} };
+static void restoreError(const QString &message,DWORD code){
+    if(!code)code=ERROR_GEN_FAILURE;
+    wchar_t details[1024]={};FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,0,code,0,details,1024,0);
+    const QString reason=code==ERROR_SERVICE_DISABLED?QStringLiteral("System Restore is disabled. Open System Protection and enable protection for the system drive. No driver was installed."):message;
+    throw RestorePointError(reason+QStringLiteral(" (Windows %1 / 0x%2). %3").arg(qulonglong(code)).arg(qulonglong(code),8,16,QLatin1Char('0')).arg(QString::fromWCharArray(details).trimmed()),code);
+}
 void OriginCore::createRestorePoint(const std::wstring &description)
 {
-    if (!admin())
-        throw std::runtime_error("Administrator rights are required to create a restore point.");
+    if (!admin())restoreError(QStringLiteral("Administrator rights are required to create a restore point."),ERROR_ACCESS_DENIED);
+    const HRESULT security=restoreComSecurity();if(FAILED(security))restoreError(QStringLiteral("System Restore COM callback security could not be initialized."),static_cast<DWORD>(security));
     typedef BOOL(WINAPI * Restore)(PRESTOREPOINTINFOW, PSTATEMGRSTATUS);
     HMODULE module = LoadLibraryW(L"srclient.dll");
     if (!module)
@@ -529,16 +553,14 @@ void OriginCore::createRestorePoint(const std::wstring &description)
                              ? QStringLiteral("DriverPack Modern - before selected driver changes")
                              : q(description);
     text.left(MAX_DESC_W - 1).toWCharArray(request.szDescription);
-    if (!restore(&request, &status) || status.nStatus != ERROR_SUCCESS)
-    {
-        SetLastError(status.nStatus ? status.nStatus : GetLastError());
-        throw std::runtime_error(
-            "Windows could not create the required restore point. No driver was installed.");
-    }
+    SetLastError(ERROR_SUCCESS);const BOOL begun=restore(&request,&status);const DWORD beginError=GetLastError();
+    const DWORD beginStatus=driverpack::restoreStatus(begun!=FALSE,status.nStatus,beginError);
+    if(beginStatus)restoreError(QStringLiteral("Windows could not create the required restore point. No driver was installed."),beginStatus);
     request.dwEventType = END_SYSTEM_CHANGE;
     request.llSequenceNumber = status.llSequenceNumber;
-    if (!restore(&request, &status) || status.nStatus != ERROR_SUCCESS)
-        throw std::runtime_error("Windows could not finalize the restore point. No driver was installed.");
+    status.nStatus=0;SetLastError(ERROR_SUCCESS);const BOOL ended=restore(&request,&status);const DWORD endError=GetLastError();
+    const DWORD endStatus=driverpack::restoreStatus(ended!=FALSE,status.nStatus,endError);
+    if(endStatus)restoreError(QStringLiteral("Windows could not finalize the restore point. No driver was installed."),endStatus);
 }
 static const Candidate *candidateFor(const Snapshot &snapshot, const Selection &selection)
 {
@@ -652,6 +674,17 @@ InstallReport OriginCore::install(const InstallPlan &plan, const EventSink &sink
         {
             createRestorePoint();
             report.restoreCreated = true;
+        }
+        catch (const RestorePointError &e) {
+            report.restoreError=e.code;
+            if(driverpack::allowDisabledRestoreBypass(plan.continueOnRestoreFailure,e.code)) {
+                report.restoreSkipped=true;
+                report.warning=L"System Restore is disabled in Windows. Continuing without a restore point after explicit user confirmation.";
+                event(sink,Stage::RestorePoint,report.warning,Outcome::Skipped,std::wstring(),0,selections.size(),e.code);
+            } else {
+                report.restoreFailed=true;report.error=QString::fromUtf8(e.what()).toStdWString();
+                event(sink,Stage::RestorePoint,report.error,Outcome::Failure,std::wstring(),0,selections.size(),report.restoreError);return report;
+            }
         }
         catch (const std::exception &e)
         {

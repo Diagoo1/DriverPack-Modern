@@ -78,6 +78,8 @@ struct Result {
     Result() : outcome(Outcome::Pending), nativeError(0), rebootRequired(false) {}
 };
 struct InstallReport {
+    bool restoreSkipped=false;
+    std::wstring warning;
     std::vector<Result> items;
     bool restoreCreated, cancelled, rebootRequired, restoreFailed;
     std::uint32_t restoreError;
