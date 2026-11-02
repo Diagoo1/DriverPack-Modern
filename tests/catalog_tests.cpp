@@ -277,6 +277,17 @@ int main(int argc, char **argv)
         snapshot.devices.push_back(other);
         check(rejected([&] { sdiomodern::validatePlan(snapshot, plan); }),
               "broad hardware-ID updates are blocked");
+        snapshot.capabilities.instanceInstall=true;
+        check(sdiomodern::validatePlan(snapshot,plan).size()==1,
+              "exact-instance installation allows a hardware ID shared by several devices");
+        plan.selections.push_back({L"SECOND",7});
+        check(sdiomodern::validatePlan(snapshot,plan).size()==2,
+              "shared-ID devices remain two independent explicit selections");
+        plan.selections.resize(1);
+        snapshot.devices[0].candidates[0].hardwareId=L"WRONG";
+        check(rejected([&]{sdiomodern::validatePlan(snapshot,plan);}),
+              "instance-targeted installation still rejects hardware not belonging to the device");
+        snapshot.devices[0].candidates[0].hardwareId=L"PCI\\FAKE";
         snapshot.devices.resize(1);
         snapshot.devices[0].candidates[0].local = false;
         check(rejected([&] { sdiomodern::validatePlan(snapshot, plan); }),

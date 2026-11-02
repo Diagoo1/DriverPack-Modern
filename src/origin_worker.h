@@ -13,7 +13,7 @@ Q_DECLARE_METATYPE(sdiomodern::InstallReport)
 class OriginWorker : public QThread {
     Q_OBJECT
 public:
-    enum Job { Scan, Install, SaveSnapshot, Extract, Restore, Backup, DeviceList };
+    enum Job { Scan, Install, SaveSnapshot, Extract, Restore, Backup, DeviceList, Preflight };
     explicit OriginWorker(QObject* parent=0);
     ~OriginWorker();
     Job job;

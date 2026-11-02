@@ -3,5 +3,9 @@
 #define DRIVERPACK_MODERN_ARCHIVE_H
 #include <QString>
 #include <atomic>
-namespace driverpack {void extractDirectory(const QString &archive,const QString &directory,const QString &destination,const std::atomic<bool> &stop);}
+#include <QSet>
+namespace driverpack {
+QSet<QString> archiveFiles(const QString &archive,const std::atomic<bool> &stop);
+void extractDirectory(const QString &archive,const QString &directory,const QString &destination,const std::atomic<bool> &stop);
+}
 #endif

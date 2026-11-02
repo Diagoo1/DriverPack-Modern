@@ -1,12 +1,12 @@
-# DriverPack Modern 0.22.2 Beta — download discovery fix
+# DriverPack Modern 0.22.3 Beta - installation preparation fixes
 
-- Uses the Offline catalog URL linked by the official DriverPack page. The Update and Offline URLs currently return the same catalog; no package versions are invented or substituted.
-- Announces to supported HTTP/UDP trackers concurrently, rather than getting stuck behind unsupported HTTPS tracker tiers in the static legacy transport.
-- Adds a Windows TLS tracker-discovery fallback with exact binary info-hash encoding, bounded replies and independent peer-data verification. Certificate validation remains enabled; no runtime OpenSSL DLL is required.
-- Initializes wanted piece priorities before starting the torrent, keeps verified blocks on pause, and does not abort a slow but actively receiving transfer solely because a whole piece is unfinished.
-- Shows peer/discovery diagnostics instead of only a generic failure; limits the status area so it does not enlarge the download window.
-- Adds tracker-response fixtures and a loopback pause/resume/sharing test. Real public package download and archive integrity were verified; no drivers or software were installed.
+- Installs on the explicitly selected device instance on Windows Vista and later, using its exact Windows-compatible INF/version node. Shared hardware IDs no longer block legitimate separate devices. The legacy unique-ID safety check remains for XP-era systems.
+- Uses the same validated device-instance protocol in the embedded native x64 helper. Never falls back to changing every device with a shared ID after a modern install error.
+- Corrects the aggregate decoder memory budget for 512 MiB solid DriverPack blocks and reports actual memory failures clearly. The supplied archive reproduced the old failure and now extracts successfully.
+- Recognizes an exact catalog INF carried in a newer archive of the same package family. Hardware/version metadata is still verified after extraction; an unrelated archive is never substituted.
+- Records preparation errors and restore-point failures in the local journal, including failures before the installation loop.
+- Adds an explicitly non-installing Windows preflight diagnostic and 14 mocked installer checks. Intel Participant, Intel Updater and Voice Clarity pass real compatible-node preflight on the development computer. No actual driver installation or restore-point creation was performed for validation.
 
-**العربية:** إصلاح اكتشاف مصادر تنزيل التورنت وإضافة مسار HTTPS عبر ويندوز، مع الحفاظ على تحقق البصمات والاستئناف وإظهار سبب تعذر الاتصال. نجح تنزيل حزمة فعلية واختبار سلامة الأرشيف. التوفر على كل الشبكات أو لكل الحزم غير مضمون؛ النسخة ما زالت بيتا.
+**العربية:** إصلاح استهداف الجهاز عند اشتراك أكثر من جهاز في معرّف العتاد، وإصلاح فشل فك ضغط حزم DriverPack الكبيرة والتعرف على ملفات التعريف المطابقة داخل الحزم الأحدث. الفحص التحضيري نجح، ويبقى تأكيد التثبيت الفعلي على الجهاز الذي ظهر عليه العطل.
 
-Original DriverPack, third-party drivers and logos retain their owners' rights. UI/development/emblem: Tarek Sadek · Diagoo1. See repository validation and notices for remaining matcher/index/OS limitations.
+Original DriverPack, third-party drivers and logos retain their owners' rights. UI/development/emblem: Tarek Sadek · Diagoo1. This remains a Beta; full XP-11 runtime and installation coverage is not claimed.

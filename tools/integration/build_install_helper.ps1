@@ -15,7 +15,7 @@ if($env:SDIO_MINGW64_BIN -and (Test-Path -LiteralPath (Join-Path $env:SDIO_MINGW
     $gcc=Join-Path $env:SDIO_MINGW64_BIN 'gcc.exe'
     $machine=((& $gcc -dumpmachine)|Out-String).Trim();Require-Exit 'Query helper compiler'
     if($machine -notmatch 'x86_64.*mingw'){throw 'SDIO_MINGW64_BIN is not a 64-bit Windows compiler.'}
-    & $gcc '-Os' '-s' '-nostdlib' '-fno-stack-protector' '-mwindows' '-Wl,--entry,helperEntry' '-Wl,--major-subsystem-version,5,--minor-subsystem-version,2' $source '-o' $Output '-lnewdev' '-lshell32' '-lkernel32'
+    & $gcc '-Os' '-s' '-nostdlib' '-fno-stack-protector' '-mwindows' '-Wl,--entry,helperEntry' '-Wl,--major-subsystem-version,5,--minor-subsystem-version,2' $source '-o' $Output '-lsetupapi' '-lnewdev' '-lshell32' '-lkernel32'
     Require-Exit 'Compile x64 installation helper'
 } else {
     $vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -27,7 +27,7 @@ if($env:SDIO_MINGW64_BIN -and (Test-Path -LiteralPath (Join-Path $env:SDIO_MINGW
     $build=Split-Path -Parent $Output
     $obj=Join-Path $build 'install64.obj'
     $cmd=Join-Path $build 'compile-helper.cmd'
-    $text="@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b %errorlevel%`r`ncl /nologo /O1 /GS- /TC `"$source`" /Fo`"$obj`" /Fe`"$Output`" /link /NODEFAULTLIB /ENTRY:helperEntry /SUBSYSTEM:WINDOWS,5.02 /OSVERSION:5.2 /DYNAMICBASE /NXCOMPAT newdev.lib shell32.lib kernel32.lib`r`nexit /b %errorlevel%`r`n"
+    $text="@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b %errorlevel%`r`ncl /nologo /O1 /GS- /TC `"$source`" /Fo`"$obj`" /Fe`"$Output`" /link /NODEFAULTLIB /ENTRY:helperEntry /SUBSYSTEM:WINDOWS,5.02 /OSVERSION:5.2 /DYNAMICBASE /NXCOMPAT setupapi.lib newdev.lib shell32.lib kernel32.lib`r`nexit /b %errorlevel%`r`n"
     [IO.File]::WriteAllText($cmd,$text,[Text.Encoding]::ASCII)
     & $env:ComSpec '/d' '/c' $cmd;Require-Exit 'Compile x64 installation helper'
     Say 'CRT-free x64 helper built with XP-era imports. Runtime compatibility still requires a VM test.'

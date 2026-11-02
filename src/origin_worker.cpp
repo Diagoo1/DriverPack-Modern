@@ -61,6 +61,7 @@ void OriginWorker::run()
         };
         if(job==Scan){sdiomodern::Paths session=paths;session.indexes=prepareLibraryIndexes(QString::fromStdWString(paths.drivers),QString::fromStdWString(paths.indexes)).toStdWString();output=m_core->scan(session,sink);if(!paths.indexTextDirectory.empty())m_core->exportIndexText(paths.indexTextDirectory);}
         else if(job==Install)installation=m_core->install(plan,sink,m_stop);
+        else if(job==Preflight)installation=m_core->preflight(plan,sink,m_stop);
         else if(job==SaveSnapshot)m_core->saveSnapshot(snapshotFile);
         else if(job==Extract)snapshotFile=m_core->extract(plan,snapshotFile,sink,m_stop);
         else if(job==Restore)m_core->createRestorePoint();
@@ -87,4 +88,15 @@ void OriginWorker::run()
         }
     }catch(const std::exception& e){error=QString::fromUtf8(e.what());}
     catch(...){error=QStringLiteral("The native engine failed with an unknown error.");}
+    if(!error.isEmpty() && !paths.noLog) {
+        QFile log(QDir(QString::fromStdWString(paths.logDirectory)).filePath(QStringLiteral("native-events.jsonl")));
+        if(log.open(QIODevice::WriteOnly|QIODevice::Append)) {
+            QJsonObject row;row.insert(QStringLiteral("time"),QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
+            row.insert(QStringLiteral("stage"),static_cast<int>(sdiomodern::Stage::Finished));
+            row.insert(QStringLiteral("outcome"),static_cast<int>(sdiomodern::Outcome::Failure));
+            row.insert(QStringLiteral("message"),error);row.insert(QStringLiteral("job"),static_cast<int>(job));
+            row.insert(QStringLiteral("installationRequested"),job==Install);
+            log.write(QJsonDocument(row).toJson(QJsonDocument::Compact));log.write("\n");
+        }
+    }
 }

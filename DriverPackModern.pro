@@ -120,3 +120,5 @@ HEADERS += src/library_maintenance.h
 
 SOURCES += src/activity_log.cpp src/activity_log_data.cpp
 HEADERS += src/activity_log.h
+
+HEADERS += native/device_installer.h

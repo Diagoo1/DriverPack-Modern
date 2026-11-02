@@ -1692,7 +1692,7 @@ void DriverPackShell::rebuild()
     connect(browse,&QPushButton::clicked,this,[this](){chooseLibrary();});body->addSpacing(12);body->addLayout(commands);
     auto centered = new QHBoxLayout;centered->addStretch(1);centered->addWidget(content,100);centered->addStretch(1);
     loading->addLayout(centered);loading->addStretch(2);
-    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.2 Beta", "تصميم وتطوير · طارق صادق  |  0.22.2 بيتا"),m_loading);
+    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.3 Beta", "تصميم وتطوير · طارق صادق  |  0.22.3 بيتا"),m_loading);
     credit->setObjectName(QStringLiteral("loadingCredit"));credit->setAlignment(Qt::AlignCenter);
     credit->setStyleSheet(QStringLiteral("font-size:13px;color:#b9e2e6;background:transparent;padding:8px;"));
     loading->addWidget(credit);

@@ -17,11 +17,13 @@
 #include <QProcess>
 #include <QSet>
 #include <QMap>
+#include <QRegularExpression>
 #include <QUuid>
 #include <windows.h>
 #include <sddl.h>
 #include <setupapi.h>
 #include <newdev.h>
+#include "device_installer.h"
 #include <SRRestorePtAPI.h>
 #include <algorithm>
 #include <cmath>
@@ -193,7 +195,7 @@ struct PrivateWork
     }
     QString path() const { return directory; }
 };
-static DWORD installFile(const QString &file, const QString &hardware, bool &reboot)
+static DWORD installFile(const QString &file, const QString &hardware, const QString &instance, const QString &version, bool &reboot, bool apply=true)
 {
     const auto target = driverpack::currentTarget();
     if (target.architecture == 64)
@@ -210,7 +212,7 @@ static DWORD installFile(const QString &file, const QString &hardware, bool &reb
             !out.commit())
             fail(QStringLiteral("Cannot prepare the embedded x64 installer."));
         QProcess process;
-        process.start(helper, QStringList() << hardware << file << resultFile);
+        process.start(helper, QStringList() << (apply ? QStringLiteral("apply") : QStringLiteral("validate")) << instance << hardware << file << version << resultFile);
         if (!process.waitForStarted())
             fail(QStringLiteral("Cannot start the x64 installer."));
         if (!process.waitForFinished(-1) || process.exitStatus() != QProcess::NormalExit ||
@@ -220,13 +222,18 @@ static DWORD installFile(const QString &file, const QString &hardware, bool &reb
         if (!result.open(QIODevice::ReadOnly) || result.size() != 16)
             fail(QStringLiteral("Missing Windows installation result."));
         DWORD fields[4] = {};
-        if (result.read(reinterpret_cast<char *>(fields), 16) != 16 || fields[0] != 0x44504D31 ||
+        if (result.read(reinterpret_cast<char *>(fields), 16) != 16 || fields[0] != 0x44504D32 ||
             fields[1] > 1 || fields[3] > 1 || (fields[1] && fields[2]) || (!fields[1] && !fields[2]))
             fail(QStringLiteral("Invalid Windows installation result."));
         reboot = fields[3] != 0;
         return fields[1] ? ERROR_SUCCESS : fields[2];
     }
     BOOL restart = FALSE;
+    if(drpInstanceInstallAvailable()) {
+        const DWORD error=drpInstallInstance(reinterpret_cast<LPCWSTR>(instance.utf16()),reinterpret_cast<LPCWSTR>(file.utf16()),reinterpret_cast<LPCWSTR>(version.utf16()),apply,&restart);
+        reboot=restart!=FALSE;return error;
+    }
+    if(!apply)return ERROR_CALL_NOT_IMPLEMENTED;
     const BOOL ok = UpdateDriverForPlugAndPlayDevicesW(0, reinterpret_cast<LPCWSTR>(hardware.utf16()),
                                                        reinterpret_cast<LPCWSTR>(file.utf16()),
                                                        INSTALLFLAG_FORCE, &restart);
@@ -254,6 +261,7 @@ Capabilities OriginCore::capabilities() const
     c.nativeCore = true;
     c.matching = true;
     c.localInstall = true;
+    c.instanceInstall = drpInstanceInstallAvailable()!=FALSE;
     c.restorePoint = true;
     c.snapshots = false;
     return c;
@@ -313,6 +321,9 @@ Snapshot OriginCore::scan(const Paths &paths, const EventSink &sink)
     const QString root = QFileInfo(q(paths.drivers)).canonicalFilePath();
     if (root.isEmpty())
         fail(QStringLiteral("Choose the DriverPack drivers folder before scanning."));
+    QMap<QString,QSet<QString>> archiveInventories;
+    const QRegularExpression packVersion(QStringLiteral("^(.*)_([0-9]{4,8})\\.7z$"),QRegularExpression::CaseInsensitiveOption);
+    const QStringList localArchives=QDir(root).entryList(QStringList()<<QStringLiteral("*.7z"),QDir::Files,QDir::Name|QDir::Reversed);
     QStringList markers;
     markers << QStringLiteral("hooks") << QStringLiteral("dependencies");
     QSettings bios(QStringLiteral("HKEY_LOCAL_MACHINE\\HARDWARE\\DESCRIPTION\\System\\BIOS"),
@@ -408,6 +419,21 @@ Snapshot OriginCore::scan(const Paths &paths, const EventSink &sink)
             candidate.filterVisibility.clear();
             candidate.packagePath = QDir(root).filePath(q(candidate.packageName)).toStdWString();
             candidate.local = QFileInfo(q(candidate.packagePath)).isFile();
+            if(!candidate.local) {
+                const auto expectedPack=packVersion.match(q(candidate.packageName));
+                if(expectedPack.hasMatch())for(const QString &name:localArchives) {
+                    const auto availablePack=packVersion.match(name);
+                    if(!availablePack.hasMatch() || availablePack.captured(1).compare(expectedPack.captured(1),Qt::CaseInsensitive) || availablePack.captured(2).toLongLong()<expectedPack.captured(2).toLongLong())continue;
+                    const QString path=QDir(root).filePath(name);
+                    const QString canonical=QFileInfo(path).canonicalFilePath();
+                    if(!canonical.startsWith(root+QLatin1Char('/'),Qt::CaseInsensitive))continue;
+                    try {
+                        if(!archiveInventories.contains(canonical)) {std::atomic<bool> readOnly(false);archiveInventories.insert(canonical,driverpack::archiveFiles(canonical,readOnly));}
+                        if(!archiveInventories.value(canonical).contains(QDir::fromNativeSeparators(q(candidate.inf)).toLower()))continue;
+                        candidate.packagePath=canonical.toStdWString();candidate.packageName=name.toStdWString();candidate.local=true;break;
+                    }catch(const std::exception &) {archiveInventories.insert(canonical,QSet<QString>());}
+                }
+            }
             bool candidateVersion = false;
             driverpack::compareVersions(row.version, row.version, &candidateVersion);
             bool versions = true;
@@ -559,6 +585,32 @@ std::wstring OriginCore::extract(const InstallPlan &plan, const std::wstring &fo
     }
     return output.toStdWString();
 }
+InstallReport OriginCore::preflight(const InstallPlan &plan,const EventSink &sink,const std::atomic<bool> &stop)
+{
+    InstallReport report;
+    const auto selections=validatePlan(m->snapshot,plan);
+    ReadLock database(m->database);
+    if(!(database.stamp()==m->databaseStamp))throw std::runtime_error("Catalog changed; rescan.");
+    for(const auto &selected:selections) {
+        if(stop.load())break;
+        Result result;result.deviceId=selected.device->instanceId;result.name=selected.device->name;
+        try {
+            const Candidate &candidate=*selected.candidate;
+            ReadLock archive(q(candidate.packagePath));
+            if(!(archive.stamp()==m->stamps.value(q(candidate.packagePath))))throw std::runtime_error("Archive changed; rescan.");
+            PrivateWork work;const auto row=m->metadata.value(candidate.token);
+            driverpack::extractDirectory(q(candidate.packagePath),row.directory,work.path(),stop);
+            const QString inf=QDir(work.path()).filePath(row.inf);
+            if(!infMatches(inf,candidate))throw std::runtime_error("Extracted INF metadata differs from the selected catalog entry.");
+            result.nativeError=installFile(inf,q(candidate.hardwareId),q(selected.device->instanceId),q(candidate.version),result.rebootRequired,false);
+            result.outcome=result.nativeError?Outcome::Failure:Outcome::Success;
+            result.message=result.nativeError?L"Windows compatible-node validation failed; no installation attempted.":L"Exact device and INF version validated by Windows; no installation attempted.";
+        }catch(const std::exception &e){result.outcome=Outcome::Failure;result.message=QString::fromUtf8(e.what()).toStdWString();}
+        report.items.push_back(result);
+        event(sink,Stage::Extract,result.message,result.outcome,result.deviceId,report.items.size(),selections.size(),result.nativeError);
+    }
+    return report;
+}
 InstallReport OriginCore::install(const InstallPlan &plan, const EventSink &sink,
                                   const std::atomic<bool> &stop)
 {
@@ -606,6 +658,7 @@ InstallReport OriginCore::install(const InstallPlan &plan, const EventSink &sink
             report.restoreFailed = true;
             report.restoreError = GetLastError();
             report.error = QString::fromUtf8(e.what()).toStdWString();
+            event(sink,Stage::RestorePoint,report.error,Outcome::Failure,std::wstring(),0,selections.size(),report.restoreError);
             return report;
         }
     }
@@ -645,7 +698,7 @@ InstallReport OriginCore::install(const InstallPlan &plan, const EventSink &sink
             }
             else
             {
-                const DWORD error = installFile(inf, q(candidate.hardwareId), result.rebootRequired);
+                const DWORD error = installFile(inf, q(candidate.hardwareId), q(selection.device->instanceId), q(candidate.version), result.rebootRequired);
                 result.nativeError = error;
                 result.outcome = error == ERROR_SUCCESS ? Outcome::Success : Outcome::Failure;
                 result.message = error == ERROR_SUCCESS ? L"Windows confirmed successful driver installation."

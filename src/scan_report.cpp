@@ -64,6 +64,25 @@ int runScanReport(int argc,char **argv)
     report.insert(QStringLiteral("error"),scanError);
     report.insert(QStringLiteral("installationRequested"),false);
     report.insert(QStringLiteral("localInstallCapability"),snapshot.capabilities.localInstall);
+    report.insert(QStringLiteral("instanceInstallCapability"),snapshot.capabilities.instanceInstall);
+    if(scanError.isEmpty() && args.contains(QStringLiteral("--validate-install"))) {
+        sdiomodern::InstallPlan plan;plan.generation=snapshot.generation;plan.confirmed=true;plan.createRestorePoint=false;
+        const QString name=value(QStringLiteral("--validate-install-name"));
+        for(const auto &device:snapshot.devices) {
+            if(!name.isEmpty() && !QString::fromStdWString(device.name).contains(name,Qt::CaseInsensitive))continue;
+            for(const auto &candidate:device.candidates)if(candidate.local && candidate.valid && candidate.recommended) {
+                plan.selections.push_back({device.instanceId,candidate.token});break;
+            }
+        }
+        if(plan.selections.empty())scanError=QStringLiteral("No matching local recommended candidate for Windows preflight.");
+        else {
+            worker.resetRequest();worker.job=OriginWorker::Preflight;worker.plan=plan;worker.start();worker.wait();
+            scanError=worker.error;QJsonArray results;
+            for(const auto &item:worker.installation.items){QJsonObject row;row.insert(QStringLiteral("instanceId"),QString::fromStdWString(item.deviceId));row.insert(QStringLiteral("name"),QString::fromStdWString(item.name));row.insert(QStringLiteral("message"),QString::fromStdWString(item.message));row.insert(QStringLiteral("win32Error"),double(item.nativeError));row.insert(QStringLiteral("success"),item.outcome==sdiomodern::Outcome::Success);results.append(row);if(item.outcome!=sdiomodern::Outcome::Success && scanError.isEmpty())scanError=QStringLiteral("One or more Windows preflight checks failed.");}
+            report.insert(QStringLiteral("windowsPreflight"),results);
+        }
+        report.insert(QStringLiteral("error"),scanError);
+    }
     if(!extraction.isEmpty())report.insert(QStringLiteral("extractionOutput"),QString::fromStdWString(worker.snapshotFile));
     QJsonArray devices;
     for(const sdiomodern::Device &d:snapshot.devices){

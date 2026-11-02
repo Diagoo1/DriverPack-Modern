@@ -80,7 +80,7 @@ std::vector<CheckedSelection> validatePlan(const Snapshot& snapshot,const Instal
             throw std::runtime_error("Unsafe or invalid relative INF path.");
         if(candidate->hardwareId.empty())throw std::runtime_error("The selected driver has no matching hardware ID.");
         // UpdateDriverForPlugAndPlayDevices targets a hardware ID, not a single
-        // instance. Reject matches shared by different devices rather than
+        // instance. Legacy fallback rejects matches shared by devices rather than
         // silently changing devices which were not selected in the UI.
         bool selectedDeviceMatches=false;
         for(const auto& id:device->hardwareIds)if(canonicalId(id)==canonicalId(candidate->hardwareId))selectedDeviceMatches=true;
@@ -94,7 +94,7 @@ std::vector<CheckedSelection> validatePlan(const Snapshot& snapshot,const Instal
             for(const auto& h:other.compatibleIds)if(canonicalId(h)==match)found=true;
             if(found)++matchingDevices;
         }
-        if(matchingDevices!=1)throw std::runtime_error("Hardware ID is absent or shared by several devices; broad installation is blocked.");
+        if(matchingDevices!=1 && !snapshot.capabilities.instanceInstall)throw std::runtime_error("Hardware ID is absent or shared by several devices; broad installation is blocked.");
         out.push_back(CheckedSelection{device,candidate});
     }
     return out;

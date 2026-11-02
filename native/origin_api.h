@@ -16,6 +16,7 @@ enum class Stage { Scan, Indexes, Match, RestorePoint, Extract, Install, Finishe
 enum class Outcome { Pending, Running, Success, Failure, Skipped, Cancelled };
 struct Capabilities {
     bool nativeCore, matching, localInstall, restorePoint, snapshots, downloads;
+    bool instanceInstall = false;
     Capabilities() : nativeCore(false), matching(false), localInstall(false),
         restorePoint(false), snapshots(false), downloads(false) {}
 };
@@ -98,6 +99,7 @@ public:
     Capabilities capabilities() const;
     Snapshot scan(const Paths&, const EventSink&);
     InstallReport install(const InstallPlan&, const EventSink&, const std::atomic<bool>& stopAfterCurrent);
+    InstallReport preflight(const InstallPlan&, const EventSink&, const std::atomic<bool>&);
     void saveSnapshot(const std::wstring& file);
     std::wstring extract(const InstallPlan&,const std::wstring& folder,const EventSink&,const std::atomic<bool>& stop);
     void createRestorePoint(const std::wstring &description=std::wstring());

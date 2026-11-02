@@ -62,7 +62,7 @@ int main(int argc, char **argv)
     {
         if (std::strcmp(argv[i], "--version") == 0)
         {
-            fprintf(stdout, "DriverPack Modern 0.22.2 Beta | UI by Tarek Sadek\n");
+            fprintf(stdout, "DriverPack Modern 0.22.3 Beta | UI by Tarek Sadek\n");
             return 0;
         }
         if (std::strcmp(argv[i], "--scan-report") == 0)
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
     // Verifiable release identity: scripts can reject stale executables.
     if (app.arguments().contains(QStringLiteral("--version")))
     {
-        fprintf(stdout, "DriverPack Modern 0.22.2 Beta | UI by Tarek Sadek\n");
+        fprintf(stdout, "DriverPack Modern 0.22.3 Beta | UI by Tarek Sadek\n");
         fflush(stdout);
         return 0;
     }
