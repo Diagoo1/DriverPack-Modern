@@ -109,50 +109,57 @@ QPainterPath windowClip(QWidget *widget, qreal radius)
                         widget->window()->isMaximized() ? 0 : radius);
     return path;
 }
-RoundedActivityBar::RoundedActivityBar(QWidget *parent) : QProgressBar(parent), m_tick(this), m_phase(0)
+RoundedActivityBar::RoundedActivityBar(QWidget *parent)
+    : QProgressBar(parent),m_tick(this),m_phase(0),m_visual(0),m_fill(this,"visualProgress",this)
 {
-    setRange(0, 0);
-    setTextVisible(false);
-    setFixedHeight(10);
-    m_tick.setInterval(40);
-    connect(&m_tick, &QTimer::timeout, this,
-            [this]()
-            {
-                m_phase = (m_phase + 1) % 55;
-                update();
-            });
+    setRange(0,0);setTextVisible(false);setFixedHeight(10);
+    m_tick.setInterval(40);m_fill.setEasingCurve(QEasingCurve::InOutCubic);
+    connect(&m_tick,&QTimer::timeout,this,[this](){
+        if(!isVisible() || minimum()!=0 || maximum()!=0 || qApp->property("reduceMotion").toBool()){m_tick.stop();return;}
+        m_phase=(m_phase+1)%80;update();
+    });
+    connect(this,&QProgressBar::valueChanged,this,[this](int){animateValue();});
 }
-void RoundedActivityBar::showEvent(QShowEvent *event)
-{
-    QProgressBar::showEvent(event);
-    if (!qApp->property("reduceMotion").toBool())
-        m_tick.start();
+void RoundedActivityBar::setVisualProgress(qreal value){m_visual=qBound(qreal(0),value,qreal(1));update();}
+int RoundedActivityBar::remainingAnimationMs()const{
+    return m_fill.state()==QAbstractAnimation::Running?qMax(0,m_fill.duration()-m_fill.currentTime()):0;
 }
-void RoundedActivityBar::hideEvent(QHideEvent *event)
-{
+void RoundedActivityBar::animateValue(){
+    m_fill.stop();
+    if(minimum()==0 && maximum()==0){m_visual=0;update();return;}
     m_tick.stop();
-    QProgressBar::hideEvent(event);
+    const qreal target=qBound(qreal(0),(qreal(value())-minimum())/qMax(qreal(1),qreal(maximum())-minimum()),qreal(1));
+    if(!isVisible() || target<=m_visual || qApp->property("reduceMotion").toBool()) {setVisualProgress(target);return;}
+    // The model value and valueChanged signal stay exact. Only the painted fill
+    // interpolates; no worker, byte count or installation stage is delayed.
+    m_fill.setDuration(qBound(360,360+qRound((target-m_visual)*440),800));
+    m_fill.setStartValue(m_visual);m_fill.setEndValue(target);m_fill.start();
 }
-void RoundedActivityBar::paintEvent(QPaintEvent *)
-{
-    QPainter p(this);
-    p.setRenderHint(QPainter::Antialiasing);
-    const bool dark = darkSurface(this);
-    const QRectF track = QRectF(rect()).adjusted(.5, .5, -.5, -.5);
-    QPainterPath clip;
-    clip.addRoundedRect(track, track.height() / 2, track.height() / 2);
-    p.fillPath(clip, Theme::color("elevated", dark));
-    p.setClipPath(clip);
-    const qreal segment = width() * .36, travel = width() + segment;
-    const qreal x =
-        qApp->property("reduceMotion").toBool() ? (width() - segment) / 2 : travel * m_phase / 54 - segment;
-    p.setPen(Qt::NoPen);
-    QLinearGradient gradient(x, 0, x + segment, 0);
-    gradient.setColorAt(0, Theme::color("headerStart", dark));
-    gradient.setColorAt(1, Theme::color("accent", dark));
-    p.setBrush(gradient);
-    p.drawRoundedRect(QRectF(x, track.top(), segment, track.height()), track.height() / 2,
-                      track.height() / 2);
+void RoundedActivityBar::showEvent(QShowEvent *event){
+    QProgressBar::showEvent(event);
+    m_fill.stop();
+    if(minimum()==0 && maximum()==0){m_visual=0;if(!qApp->property("reduceMotion").toBool())m_tick.start();}
+    else setVisualProgress(qBound(qreal(0),(qreal(value())-minimum())/qMax(qreal(1),qreal(maximum())-minimum()),qreal(1)));
+}
+void RoundedActivityBar::hideEvent(QHideEvent *event){m_tick.stop();m_fill.stop();QProgressBar::hideEvent(event);}
+void RoundedActivityBar::paintEvent(QPaintEvent *){
+    const bool busy=minimum()==0 && maximum()==0;
+    if(busy){m_fill.stop();m_visual=0;if(isVisible() && !m_tick.isActive() && !qApp->property("reduceMotion").toBool())m_tick.start();}
+    else m_tick.stop();
+    QPainter painter(this);painter.setRenderHint(QPainter::Antialiasing);
+    const bool dark=darkSurface(this),hero=property("heroProgress").toBool();
+    const QRectF face=QRectF(rect()).adjusted(.5,.5,-.5,-.5);const qreal radius=face.height()/2;
+    QPainterPath clip;clip.addRoundedRect(face,radius,radius);
+    painter.fillPath(clip,hero?QColor(255,255,255,35):Theme::color("elevated",dark));painter.setClipPath(clip);
+    QRectF fill=face;
+    if(busy){fill.setWidth(face.width()*.30);fill.moveLeft(face.left()+(face.width()+fill.width())*(qApp->property("reduceMotion").toBool()?.5:qreal(m_phase)/79)-fill.width());}
+    else fill.setWidth(face.width()*m_visual);
+    if((layoutDirection()==Qt::RightToLeft)!=invertedAppearance())fill.moveLeft(face.right()-(fill.right()-face.left()));
+    QLinearGradient gradient(fill.topLeft(),fill.topRight());
+    gradient.setColorAt(0,hero?QColor("#31bfd1"):Theme::color("headerStart",dark));
+    gradient.setColorAt(1,hero?QColor("#4bddb6"):Theme::color("accent",dark));
+    painter.setPen(Qt::NoPen);painter.setBrush(gradient);painter.drawRoundedRect(fill,radius,radius);
+    if(!busy && isTextVisible()){painter.setPen(hero?QColor(Qt::white):Theme::color("text",dark));painter.drawText(rect(),Qt::AlignCenter,text());}
 }
 
 ActionButton::ActionButton(const QString &text, QWidget *parent)

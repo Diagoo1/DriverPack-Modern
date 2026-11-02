@@ -1692,7 +1692,7 @@ void DriverPackShell::rebuild()
     connect(browse,&QPushButton::clicked,this,[this](){chooseLibrary();});body->addSpacing(12);body->addLayout(commands);
     auto centered = new QHBoxLayout;centered->addStretch(1);centered->addWidget(content,100);centered->addStretch(1);
     loading->addLayout(centered);loading->addStretch(2);
-    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.4 Beta", "تصميم وتطوير · طارق صادق  |  0.22.4 بيتا"),m_loading);
+    auto credit = copy(t("Design & development · Tarek Sadek  |  0.22.5 Beta", "تصميم وتطوير · طارق صادق  |  0.22.5 بيتا"),m_loading);
     credit->setObjectName(QStringLiteral("loadingCredit"));credit->setAlignment(Qt::AlignCenter);
     credit->setStyleSheet(QStringLiteral("font-size:13px;color:#b9e2e6;background:transparent;padding:8px;"));
     loading->addWidget(credit);
@@ -3853,66 +3853,8 @@ class ChoiceTree : public ProjectTable
     }
 };
 } // namespace
-class TransferProgress : public QProgressBar
-{
-    QTimer tick;
-    qreal phase = 0;
-
-  public:
-    explicit TransferProgress(QWidget *parent) : QProgressBar(parent)
-    {
-        setMinimumHeight(28);
-        tick.setInterval(40);
-        connect(&tick, &QTimer::timeout, this,
-                [this]()
-                {
-                    phase += .025;
-                    if (phase > 1)
-                        phase = 0;
-                    update();
-                });
-    }
-
-  protected:
-    void showEvent(QShowEvent *event) Q_DECL_OVERRIDE
-    {
-        QProgressBar::showEvent(event);
-        tick.start();
-    }
-    void hideEvent(QHideEvent *event) Q_DECL_OVERRIDE
-    {
-        tick.stop();
-        QProgressBar::hideEvent(event);
-    }
-    void paintEvent(QPaintEvent *) Q_DECL_OVERRIDE
-    {
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
-        const bool dark = Theme::isDark(this), busy = maximum() == minimum();
-        const QRectF face = QRectF(rect()).adjusted(.5, .5, -.5, -.5);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(Theme::color("elevated", dark));
-        painter.drawRoundedRect(face, 14, 14);
-        const qreal ratio =
-            busy ? .3 : qBound(0., qreal(value() - minimum()) / qMax(1, maximum() - minimum()), 1.);
-        QRectF fill = face;
-        fill.setWidth(face.width() * ratio);
-        if (busy)
-            fill.moveLeft(face.left() + (face.width() - fill.width()) *
-                                            (qApp->property("reduceMotion").toBool() ? .5 : phase));
-        if (layoutDirection() == Qt::RightToLeft)
-            fill.moveLeft(face.right() - (fill.right() - face.left()));
-        QLinearGradient gradient(fill.topLeft(), fill.topRight());
-        gradient.setColorAt(0, Theme::color("headerStart", dark));
-        gradient.setColorAt(1, Theme::color("accent", dark));
-        painter.setBrush(gradient);
-        painter.drawRoundedRect(fill, 14, 14);
-        if (!busy)
-        {
-            painter.setPen(Theme::color("text", dark));
-            painter.drawText(rect(), Qt::AlignCenter, QStringLiteral("%1%").arg(qRound(ratio * 100)));
-        }
-    }
+class TransferProgress : public RoundedActivityBar {
+public:explicit TransferProgress(QWidget *parent):RoundedActivityBar(parent){setRange(0,1000);setTextVisible(true);setFixedHeight(28);}
 };
 class DrpTransferDialog : public RoundedDialog
 {
@@ -5418,20 +5360,27 @@ void DriverPackShell::installationPage()
         qDeleteAll(m_install->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly));
         delete m_install->layout();
     }
-    auto box = new QVBoxLayout(m_install);
-    box->setContentsMargins(48, 35, 48, 30);
-    box->setSpacing(22);
-    box->addWidget(copy(t("Configuring your computer", "جارٍ إعداد الكمبيوتر"), m_install, "title"));
-    m_installText =
-        copy(t("Preparing the selected items…", "جارٍ تجهيز العناصر المحددة…"), m_install, "largeCaption");
-    box->addWidget(m_installText);
+    m_install->setObjectName(QStringLiteral("installationWorkspace"));m_install->setAttribute(Qt::WA_StyledBackground,true);
+    m_install->setStyleSheet(QStringLiteral("QWidget#installationWorkspace{background:%1;}").arg(Theme::color("background",m_dark).name()));
+    m_install->setProperty("currentStage",-1);
+    auto box=new QVBoxLayout(m_install);box->setContentsMargins(28,24,28,24);box->setSpacing(16);
+    auto hero=new AccentCard(m_install);hero->setObjectName(QStringLiteral("installationHero"));
+    hero->setStyleSheet(QStringLiteral("QLabel{color:white;background:transparent;} QLabel#caption{color:#c4ebec;}"));
+    auto heroBox=new QVBoxLayout(hero);heroBox->setContentsMargins(24,20,24,20);heroBox->setSpacing(14);
+    auto titleLine=new QHBoxLayout;
+    auto symbol=new QLabel(hero);symbol->setPixmap(VectorIcons::pixmap(QStringLiteral("install"),QColor("#c8fff2"),32));titleLine->addWidget(symbol);
+    auto headings=new QVBoxLayout;headings->setSpacing(6);
+    headings->addWidget(copy(t("Configuring your computer","جارٍ إعداد الكمبيوتر"),hero,"title"));
+    m_installText=copy(t("Preparing the selected items…","جارٍ تجهيز العناصر المحددة…"),hero,"caption");headings->addWidget(m_installText);titleLine->addLayout(headings,1);
+    auto count=copy(t("%1 selected items","%1 عناصر محددة").arg(m_resultRows.size()),hero);count->setStyleSheet(QStringLiteral("color:white;background:rgba(255,255,255,25);border:1px solid rgba(255,255,255,45);border-radius:12px;padding:9px 14px;font-size:13px;"));titleLine->addWidget(count);heroBox->addLayout(titleLine);
+    m_installBar=new RoundedActivityBar(hero);m_installBar->setObjectName(QStringLiteral("installationProgress"));m_installBar->setProperty("heroProgress",true);m_installBar->setTextVisible(true);m_installBar->setFixedHeight(28);m_installBar->setRange(0,0);heroBox->addWidget(m_installBar);
+    m_elapsedText=copy(QString(),hero,"caption");heroBox->addWidget(m_elapsedText);box->addWidget(hero);
+    auto stages=new QHBoxLayout;stages->setSpacing(12);
+    const char *names[]={"restoreStage","extractStage","installStage"};
+    const QString texts[]={t("01  Restore point","01  نقطة الاستعادة"),t("02  Extract and verify","02  فك الضغط والتحقق"),t("03  Install drivers","03  تثبيت التعريفات")};
+    for(int i=0;i<3;++i){auto tag=copy(texts[i],m_install);tag->setObjectName(QString::fromLatin1(names[i]));tag->setAlignment(Qt::AlignCenter);tag->setStyleSheet(QStringLiteral("background:%1;color:%2;border:1px solid %3;border-radius:12px;padding:13px;font-size:14px;font-weight:600;").arg(Theme::color("surface",m_dark).name(),Theme::color("text",m_dark).name(),Theme::color("border",m_dark).name()));stages->addWidget(tag,1);}box->addLayout(stages);
     auto restoreNotice=copy(t("System Restore is disabled. Continuing without a restore point after your confirmation.","استعادة النظام معطّلة. تجري المتابعة بدون نقطة استعادة بعد موافقتك."),m_install);
     restoreNotice->setObjectName(QStringLiteral("restoreBypassNotice"));restoreNotice->setStyleSheet(QStringLiteral("background:%1;color:%2;border:1px solid #d8ac4f;border-radius:12px;padding:14px;font-size:14px;").arg(m_dark?QStringLiteral("#403924"):QStringLiteral("#fff4d8"),m_dark?QStringLiteral("#ffe2a1"):QStringLiteral("#79541a")));restoreNotice->hide();box->addWidget(restoreNotice);
-    m_installBar = new QProgressBar(m_install);
-    m_installBar->setRange(0, 0);
-    box->addWidget(m_installBar);
-    m_elapsedText = copy(QString(), m_install, "caption");
-    box->addWidget(m_elapsedText);
     m_installItems = new ProjectTable(m_install);
     m_installItems->setRootIsDecorated(false);
     m_installItems->setHeaderLabels(QStringList() << t("Driver / software", "التعريف / البرنامج")
@@ -5439,7 +5388,8 @@ void DriverPackShell::installationPage()
     m_installItems->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     m_installItems->header()->setSectionResizeMode(1, QHeaderView::Stretch);
     m_installItems->setColumnWidth(2, 100);
-    m_installItems->setHeaderHidden(true);
+    m_installItems->setHeaderHidden(false);
+    m_installItems->setObjectName(QStringLiteral("installationItems"));
     m_installItems->setIndentation(0);
     m_installItemMap.clear();
     m_itemStarted.clear();
@@ -5462,9 +5412,10 @@ void DriverPackShell::installationPage()
             group = new QTreeWidgetItem(m_installItems);
             group->setText(0, software ? t("Software", "البرامج") : t("Drivers", "التعريفات"));
             QFont face = font();
-            face.setPixelSize(23);
+            face.setPixelSize(15);face.setWeight(QFont::DemiBold);
             group->setFont(0, face);
-            group->setSizeHint(0, QSize(0, 55));
+            group->setSizeHint(0, QSize(0, 42));
+            group->setForeground(0,QBrush(Theme::color("accent",m_dark)));
             group->setExpanded(true);
         }
         auto item = new QTreeWidgetItem(group);
@@ -5475,6 +5426,7 @@ void DriverPackShell::installationPage()
     }
     box->addWidget(m_installItems, 1);
     auto cancel = action(t("Stop the remaining queue", "إيقاف باقي القائمة"), m_install);
+    cancel->setIcon(VectorIcons::icon(QStringLiteral("close"),Theme::color("accent",m_dark),20));cancel->setFixedHeight(46);
     connect(cancel, &QPushButton::clicked, this,
             [this]()
             {
@@ -5658,20 +5610,19 @@ void DriverPackShell::nativeProgress(const sdiomodern::Event &e)
                                 ? t("Installing the selected driver…", "جارٍ تثبيت التعريف المحدد…")
                                 : t("Preparing the selected items…", "جارٍ تجهيز العناصر المحددة…")) +
                            QStringLiteral("  ") + QString::fromStdWString(e.label));
-    if (e.percent >= 0)
-    {
-        m_installBar->setRange(0, 100);
-        m_installBar->setValue(e.percent);
-    }
-    else if (e.total)
-    {
-        m_installBar->setRange(0, 1000);
-        m_installBar->setValue(e.done * 1000 / e.total);
+    if(e.percent>=0){m_installBar->setRange(0,100);m_installBar->setValue(e.percent);}
+    else if(e.outcome==sdiomodern::Outcome::Running){m_installBar->setRange(0,0);}
+    else if(e.total){m_installBar->setRange(0,1000);m_installBar->setValue(e.done*1000/e.total);}
+    const int stage=e.stage==sdiomodern::Stage::RestorePoint?0:e.stage==sdiomodern::Stage::Extract?1:e.stage==sdiomodern::Stage::Install?2:-1;
+    if(stage>=0 && m_install->property("currentStage").toInt()!=stage){
+        m_install->setProperty("currentStage",stage);
+        const char *names[]={"restoreStage","extractStage","installStage"};
+        for(int i=0;i<3;++i)if(auto tag=m_install->findChild<QLabel*>(QString::fromLatin1(names[i])))tag->setStyleSheet(QStringLiteral("background:%1;color:%2;border:1px solid %3;border-radius:12px;padding:13px;font-size:14px;font-weight:600;").arg(i==stage?(m_dark?QStringLiteral("#175c72"):QStringLiteral("#d7f1ec")):Theme::color("surface",m_dark).name(),i==stage?Theme::color("accent",m_dark).name():Theme::color("text",m_dark).name(),i==stage?QStringLiteral("#16b7ab"):Theme::color("border",m_dark).name()));
     }
     if(e.stage==sdiomodern::Stage::RestorePoint && e.outcome==sdiomodern::Outcome::Skipped){m_restoreSkipped=true;if(auto notice=m_install->findChild<QLabel*>(QStringLiteral("restoreBypassNotice")))notice->show();}
     const QString id = QString::fromStdWString(e.deviceId);
     if (e.stage == sdiomodern::Stage::RestorePoint && m_installItemMap.contains(QStringLiteral("restore")))
-        m_installItemMap.value(QStringLiteral("restore"))->setText(1, t("Creating…", "جارٍ الإنشاء…"));
+        m_installItemMap.value(QStringLiteral("restore"))->setText(1,e.outcome==sdiomodern::Outcome::Success?t("Created","تم الإنشاء"):e.outcome==sdiomodern::Outcome::Skipped?t("Skipped after confirmation","تم التخطي بعد الموافقة"):e.outcome==sdiomodern::Outcome::Failure?t("Failed","فشل"):t("Creating…","جارٍ الإنشاء…"));
     if (!id.isEmpty() && m_installItemMap.contains(id))
     {
         if (!m_itemStarted.contains(id))
@@ -5684,6 +5635,7 @@ void DriverPackShell::nativeProgress(const sdiomodern::Event &e)
         row->setText(1, e.outcome == sdiomodern::Outcome::Success   ? t("Installed", "تم التثبيت")
                         : e.outcome == sdiomodern::Outcome::Failure ? t("Failed", "فشل")
                                                                     : t("Working…", "جارٍ العمل…"));
+        const QColor tone=e.outcome==sdiomodern::Outcome::Success?QColor("#00a88e"):e.outcome==sdiomodern::Outcome::Failure?QColor("#df6579"):Theme::color("accent",m_dark);row->setForeground(1,QBrush(tone));QFont stateFont=font();stateFont.setWeight(QFont::DemiBold);row->setFont(1,stateFont);
         row->setText(2, QStringLiteral("%1 s").arg(
                             (m_elapsed.elapsed() - m_itemStarted.value(id, m_elapsed.elapsed())) / 1000));
     }
@@ -5745,7 +5697,7 @@ void DriverPackShell::nativeFinished(const sdiomodern::InstallReport &r)
     m_pendingSoftware = false;
     m_clock->stop();
     m_catalog->invalidateNative();
-    finalPage();
+    presentInstallationResult();
 }
 void DriverPackShell::downloadSoftwareOnly()
 {
@@ -5809,7 +5761,7 @@ void DriverPackShell::nextSoftware()
         m_activeSoftware.clear();
         if (!m_downloadOnly)
             m_catalog->invalidateNative();
-        finalPage();
+        presentInstallationResult();
         return;
     }
     auto &program = m_programs[m_currentProgram = m_softwareQueue[m_softwarePosition]];
@@ -5904,8 +5856,7 @@ void DriverPackShell::nextSoftware()
     m_installText->setText(
         t("%1 setup is open. Follow its wizard to continue.", "مثبت %1 مفتوح. اتبع معالجه للمتابعة.")
             .arg(program.name));
-    m_installBar->setRange(0, 100);
-    m_installBar->setValue(m_softwarePosition * 100 / qMax(1, m_softwareQueue.size()));
+    m_installBar->setRange(0,0); // Interactive setup does not expose a trustworthy percentage.
     m_setupTimer->start();
 #else
     m_error = t("Windows installer required.", "يتطلب مثبت ويندوز.");
@@ -5959,6 +5910,17 @@ void DriverPackShell::pollSoftware()
         nextSoftware();
     }
 #endif
+}
+void DriverPackShell::presentInstallationResult()
+{
+    if(!m_capture && !m_resultFailed && !m_cancelSoftware && m_root->currentWidget()==m_install) {
+        m_installBar->setRange(0,1000);m_installBar->setValue(1000);
+        if(auto bar=qobject_cast<RoundedActivityBar*>(m_installBar)) {
+            const int remaining=bar->remainingAnimationMs();
+            if(remaining>0){m_installText->setText(t("Completed. Preparing the results…","اكتملت العملية. جارٍ عرض النتائج…"));QTimer::singleShot(qMin(850,remaining+30),this,[this](){finalPage();});return;}
+        }
+    }
+    finalPage();
 }
 void DriverPackShell::finalPage()
 {
@@ -6075,6 +6037,17 @@ int DriverPackShell::capture(const QString &folder)
     show();
     if(QCoreApplication::arguments().contains(QStringLiteral("--capture-result-states"))) {
         QDir().mkpath(folder);
+        auto probe=new RoundedActivityBar(this);probe->setGeometry(20,70,300,20);probe->setRange(0,1000);probe->setValue(0);probe->show();events(40);
+        probe->setValue(1000);if(probe->value()!=1000 || probe->visualProgress()>.1)return 162;
+        events(180);const qreal first=probe->visualProgress();if(first<=0 || first>=1)return 163;
+        events(180);const qreal second=probe->visualProgress();if(second<=first || second>=1)return 164;
+        events(550);if(qAbs(probe->visualProgress()-1)>.001)return 165;
+        probe->setValue(0);if(probe->visualProgress()!=0)return 166;
+        probe->setValue(900);events(90);const qreal beforeRetarget=probe->visualProgress();probe->setValue(1000);if(probe->visualProgress()!=beforeRetarget)return 167;
+        probe->hide();probe->setValue(400);if(qAbs(probe->visualProgress()-.4)>.001 || probe->remainingAnimationMs())return 168;
+        probe->show();events(40);if(probe->remainingAnimationMs())return 169;
+        qApp->setProperty("reduceMotion",true);probe->setValue(1000);if(probe->visualProgress()!=1 || probe->remainingAnimationMs())return 170;qApp->setProperty("reduceMotion",false);
+        QJsonObject progressProof;progressProof.insert(QStringLiteral("realValueImmediately"),1000);progressProof.insert(QStringLiteral("firstVisualSample"),first);progressProof.insert(QStringLiteral("secondVisualSample"),second);progressProof.insert(QStringLiteral("retargetContinuous"),true);progressProof.insert(QStringLiteral("hiddenAndReducedMotionSnap"),true);QFile proof(QDir(folder).filePath(QStringLiteral("progress-animation-checks.json")));if(proof.open(QIODevice::WriteOnly))proof.write(QJsonDocument(progressProof).toJson());delete probe;
         for(const QString &locale:{QStringLiteral("english"),QStringLiteral("arabic")})for(bool dark:{false,true}) {
             applyLanguage(locale);m_themeMode=dark?QStringLiteral("dark"):QStringLiteral("light");appearance();m_restoreFailed=true;m_resultFailed=true;m_lastReboot=false;
             m_error=t("Preview: System Restore is disabled. No driver was installed. (Windows 1058)","معاينة: استعادة النظام معطّلة. لم يُثبّت أي تعريف. (ويندوز 1058)");
@@ -6085,6 +6058,14 @@ int DriverPackShell::capture(const QString &folder)
             if(buttons.size()!=2 || buttons[0]->height()!=52 || buttons[1]->height()!=52 || qAbs(buttons[0]->width()-buttons[1]->width())>1)return 160;
             grab().save(QDir(folder).filePath(locale+(dark?QStringLiteral("-dark.png"):QStringLiteral("-light.png"))));
             if(confirmWithoutRestore(QDir(folder).filePath(locale+(dark?QStringLiteral("-warning-dark.png"):QStringLiteral("-warning-light.png")))))return 161;
+            m_restoreFailed=false;m_restoreSkipped=false;installationPage();m_clock->stop();m_installing=true;
+            sdiomodern::Event stage;stage.stage=sdiomodern::Stage::RestorePoint;stage.outcome=sdiomodern::Outcome::Success;nativeProgress(stage);
+            stage.stage=sdiomodern::Stage::Install;stage.outcome=sdiomodern::Outcome::Running;stage.deviceId=L"preview";nativeProgress(stage);m_installing=false;
+            m_installText->setText(t("Interface preview only. No installation was performed.","معاينة الواجهة فقط. لم يُنفّذ أي تثبيت."));m_elapsedText->setText(t("Elapsed: 00:15","الوقت المنقضي: 00:15"));events(800);
+            grab().save(QDir(folder).filePath(locale+(dark?QStringLiteral("-installation-busy-dark.png"):QStringLiteral("-installation-busy-light.png"))));
+            m_installBar->setRange(0,100);m_installBar->setValue(50);events(700);
+            grab().save(QDir(folder).filePath(locale+(dark?QStringLiteral("-installation-progress-dark.png"):QStringLiteral("-installation-progress-light.png"))));
+
         }
         return 0;
     }

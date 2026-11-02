@@ -68,6 +68,7 @@ class DriverPackShell : public QWidget
     void buildAbout(QWidget *);
     void installationPage();
     void finalPage();
+    void presentInstallationResult();
     bool confirmWithoutRestore(const QString &captureFile=QString());
     void loadSoftware();
     void logDialog();

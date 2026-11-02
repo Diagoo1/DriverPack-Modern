@@ -136,3 +136,15 @@ These are simulated UI states. No driver was installed for these images.
 <table><tr><td><img src="screenshots/en-dark/14-result-preview.png" alt="Result preview"></td><td><img src="screenshots/en-dark/15-restore-warning-preview.png" alt="Restore warning preview"></td></tr></table>
 <table><tr><td><img src="screenshots/ar-light/14-result-preview.png" alt="Result preview"></td><td><img src="screenshots/ar-light/15-restore-warning-preview.png" alt="Restore warning preview"></td></tr></table>
 <table><tr><td><img src="screenshots/ar-dark/14-result-preview.png" alt="Result preview"></td><td><img src="screenshots/ar-dark/15-restore-warning-preview.png" alt="Restore warning preview"></td></tr></table>
+
+## 0.22.5 installation activity / نشاط التثبيت
+
+Simulated installation views with unknown-duration activity, not actual installation evidence.
+
+![Installation activity preview](screenshots/en-light/16-installation-busy-preview.png)
+
+![Installation activity preview](screenshots/en-dark/16-installation-busy-preview.png)
+
+![Installation activity preview](screenshots/ar-light/16-installation-busy-preview.png)
+
+![Installation activity preview](screenshots/ar-dark/16-installation-busy-preview.png)

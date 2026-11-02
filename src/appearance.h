@@ -14,9 +14,18 @@
 class QPainter;
 
 class RoundedActivityBar : public QProgressBar {
+    Q_OBJECT
+    Q_PROPERTY(qreal visualProgress READ visualProgress WRITE setVisualProgress)
 public:explicit RoundedActivityBar(QWidget *parent=0);
+    qreal visualProgress()const{return m_visual;}
+    void setVisualProgress(qreal value);
+    int remainingAnimationMs()const;
 protected:void paintEvent(QPaintEvent*) Q_DECL_OVERRIDE;void showEvent(QShowEvent*) Q_DECL_OVERRIDE;void hideEvent(QHideEvent*) Q_DECL_OVERRIDE;
-private:QTimer m_tick;int m_phase;
+private:
+    void animateValue();
+    QTimer m_tick;int m_phase;
+    qreal m_visual;
+    QPropertyAnimation m_fill;
 };
 
 class TitleButton : public QToolButton {

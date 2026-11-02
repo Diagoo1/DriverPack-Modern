@@ -34,7 +34,7 @@ void openPortableLibrary(QWidget *parent,const QString &drivers,const QString &i
     QCheckBox *onlyNeeded=new QCheckBox(t("Only packages recommended for this computer","الحزم الموصى بها لهذا الجهاز فقط"),body);onlyNeeded->setEnabled(!needed.isEmpty());onlyNeeded->setChecked(!needed.isEmpty());box->addWidget(onlyNeeded);
     QCheckBox *includeSoftware=new QCheckBox(t("Include ordinary local software (no partner packages)","تضمين البرامج المحلية العادية بدون حزم الشراكات"),body);{QScopedPointer<QSettings> preferences(createAppSettings(QString(),0,false));includeSoftware->setChecked(preferences->value(QStringLiteral("offline/category0"),true).toBool());}box->addWidget(includeSoftware);QTemporaryDir softwareData;
     ActionButton *choose=new ActionButton(t("Choose destination & copy","اختيار الوجهة والنسخ"),body);choose->setObjectName(QStringLiteral("primaryButton"));box->addWidget(choose);
-    QProgressBar *bar=new QProgressBar(body);bar->setObjectName(QStringLiteral("mainProgress"));bar->setRange(0,1000);bar->setValue(0);box->addWidget(bar);
+    QProgressBar *bar=new RoundedActivityBar(body);bar->setTextVisible(true);bar->setFixedHeight(24);bar->setObjectName(QStringLiteral("mainProgress"));bar->setRange(0,1000);bar->setValue(0);box->addWidget(bar);
     QLabel *status=new QLabel(t("One executable. Your offline library.","ملف تشغيلي واحد، ومكتبتك الأوفلاين."),body);status->setObjectName(QStringLiteral("subText"));status->setWordWrap(true);box->addWidget(status);
     PortableWorker worker(&dialog);QTimer timer;timer.setInterval(100);QObject::connect(&timer,&QTimer::timeout,&dialog,[&](){const qint64 all=worker.total.load();if(all)bar->setValue(static_cast<int>(worker.done.load()*1000/all));});
     QObject::connect(choose,&QPushButton::clicked,&dialog,[&](){
@@ -45,6 +45,6 @@ void openPortableLibrary(QWidget *parent,const QString &drivers,const QString &i
         catch(const std::exception &e){status->setText(QString::fromUtf8(e.what()));return;}
         choose->setEnabled(false);onlyNeeded->setEnabled(false);includeSoftware->setEnabled(false);status->setText(t("Copying and verifying files...","جارٍ نسخ الملفات والتحقق منها..."));timer.start();worker.start();
     });
-    QObject::connect(&worker,&QThread::finished,&dialog,[&](){timer.stop();choose->setEnabled(true);includeSoftware->setEnabled(true);onlyNeeded->setEnabled(!needed.isEmpty());status->setText(worker.error.isEmpty()?t("Portable library ready: ","المكتبة المحمولة جاهزة: ")+worker.destination:worker.error);});
+    QObject::connect(&worker,&QThread::finished,&dialog,[&](){timer.stop();if(worker.error.isEmpty()){bar->setRange(0,1000);bar->setValue(1000);}choose->setEnabled(true);includeSoftware->setEnabled(true);onlyNeeded->setEnabled(!needed.isEmpty());status->setText(worker.error.isEmpty()?t("Portable library ready: ","المكتبة المحمولة جاهزة: ")+worker.destination:worker.error);});
     dialog.exec();worker.stop.store(true);worker.wait();
 }

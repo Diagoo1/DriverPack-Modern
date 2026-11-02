@@ -1,6 +1,6 @@
 # Beta validation
 
-Version **0.22.4**. Seven fixture suites pass **289 checks**, plus a loopback-only peer transport suite: catalog/selection 95, transfer data 34, independence 42, software adapter 62, cleanup 35, activity-log parser 7, mocked exact-device installer 14. Fixture tests do not install software or modify a production library.
+Version **0.22.5**. Seven fixture suites pass **289 checks**, plus a loopback-only peer transport suite: catalog/selection 95, transfer data 34, independence 42, software adapter 62, cleanup 35, activity-log parser 7, mocked exact-device installer 14. Fixture tests do not install software or modify a production library.
 
 The x86 executable links Qt and transport statically. PE auditing found only Windows system DLLs and no known post-XP imports among 662 imported functions. The embedded x64 installation helper is generated from included source.
 
@@ -35,3 +35,11 @@ An explicitly user-authorized elevated restore-only test was performed on Window
 The result page distinguishes a blocked restore point from completed installation errors. Result actions share equal width, 52-pixel height, typography and spacing; the table height is bounded by item count. Native capture asserts result-action geometry and includes a labelled simulated restore-failure page in English/Arabic and light/dark themes. A sidebar animation check waits for its state with a bounded deadline rather than assuming a busy frame finishes within exactly 320 ms.
 
 For Windows error 1058 only, the UI now offers a yellow explicit Continue/Cancel dialog before any driver starts. Cancel/Escape/window-close do not retry. Confirmed continuation retries the same validated plan with a per-operation flag; the backend allows this exception only for disabled System Restore. Other restore errors remain blocking. Pure policy/workflow tests cover consent, error classification, already-started items and cancellation. The bypass itself was tested through policy fixtures and simulated UI, not by disabling protection again or installing a driver.
+
+## 0.22.5 progress presentation
+
+The active shell's installation, transfer, scan/update activity and portable-copy bars use the shared rounded renderer. Underlying progress values/signals remain exact; only the fill interpolates over 360-800 ms. Unknown-duration Windows install/extract/restore phases use indeterminate movement rather than manufactured percentages. Timers stop when hidden or determinate/idle. Showing a hidden bar snaps to its current value rather than replaying animation; reduced-motion mode snaps immediately.
+
+The native UI probe checks actual value immediately after an update, intermediate increasing visual samples, final convergence, reset, continuous retargeting, hidden behavior and reduced motion. The same probes and English/Arabic light/dark installation captures pass at 100% and 150%. These are simulated progress/UI tests, not actual installations. Successful operations may keep the already-completed result visible for at most the remaining bounded fill animation (at most 850 ms); failures/cancellation are not painted as 100% success.
+
+The installation page has a project-color hero, phase chips, visible table header, selected-item count and elapsed time. Restore-point success is emitted explicitly by the native adapter, so its row no longer remains in Creating while installation begins.

@@ -674,6 +674,7 @@ InstallReport OriginCore::install(const InstallPlan &plan, const EventSink &sink
         {
             createRestorePoint();
             report.restoreCreated = true;
+            event(sink,Stage::RestorePoint,L"Windows confirmed the restore point.",Outcome::Success);
         }
         catch (const RestorePointError &e) {
             report.restoreError=e.code;
@@ -710,7 +711,7 @@ InstallReport OriginCore::install(const InstallPlan &plan, const EventSink &sink
             continue;
         }
         const Candidate &candidate = *selection.candidate;
-        event(sink, Stage::Install, L"Preparing and verifying the selected DriverPack driver.",
+        event(sink, Stage::Extract, L"Preparing and verifying the selected DriverPack driver.",
               Outcome::Running, result.deviceId, completed, selections.size());
         try
         {
@@ -719,6 +720,7 @@ InstallReport OriginCore::install(const InstallPlan &plan, const EventSink &sink
                 throw std::runtime_error("The driver archive changed after scanning.");
             PrivateWork work;
             const auto metadata = m->metadata.value(candidate.token);
+            event(sink,Stage::Extract,L"Extracting and verifying the selected driver files.",Outcome::Running,result.deviceId,completed,selections.size());
             driverpack::extractDirectory(q(candidate.packagePath), metadata.directory, work.path(), stop);
             const QString inf = QDir(work.path()).filePath(metadata.inf);
             if (!infMatches(inf, candidate))
@@ -731,6 +733,7 @@ InstallReport OriginCore::install(const InstallPlan &plan, const EventSink &sink
             }
             else
             {
+                event(sink,Stage::Install,L"Installing the selected driver on the exact device.",Outcome::Running,result.deviceId,completed,selections.size());
                 const DWORD error = installFile(inf, q(candidate.hardwareId), q(selection.device->instanceId), q(candidate.version), result.rebootRequired);
                 result.nativeError = error;
                 result.outcome = error == ERROR_SUCCESS ? Outcome::Success : Outcome::Failure;

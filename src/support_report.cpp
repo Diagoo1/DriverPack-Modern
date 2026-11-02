@@ -14,7 +14,7 @@
 #include <QTextOption>
 
 QString BugReport::environment(const QString &windows,const QString &architecture,const QString &language,bool dark){
-    const QString pattern=UiLanguage::text(QStringLiteral("Version: 0.22.4 (Beta)\nWindows: %1\nArchitecture: %2\nLanguage: %3\nTheme: %4"),QString::fromUtf8("الإصدار: 0.22.4 (بيتا)\nويندوز: %1\nالمعمارية: %2\nاللغة: %3\nالمظهر: %4"));
+    const QString pattern=UiLanguage::text(QStringLiteral("Version: 0.22.5 (Beta)\nWindows: %1\nArchitecture: %2\nLanguage: %3\nTheme: %4"),QString::fromUtf8("الإصدار: 0.22.5 (بيتا)\nويندوز: %1\nالمعمارية: %2\nاللغة: %3\nالمظهر: %4"));
     auto isolate=[](const QString &value){return QChar(0x202a)+value+QChar(0x202c);};
     const bool ar=UiLanguage::isRtl();const QString languageName=ar && language==QStringLiteral("arabic")?QString::fromUtf8("العربية"):language;
     return pattern.arg(ar?isolate(windows):windows,ar?isolate(architecture):architecture,languageName, dark?UiLanguage::text(QStringLiteral("Dark"),QString::fromUtf8("داكن")):UiLanguage::text(QStringLiteral("Light"),QString::fromUtf8("فاتح")));
@@ -30,7 +30,7 @@ void BugReport::show(QWidget *parent){
     QDesktopServices::openUrl(issueUrl(environment(QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture(), UiLanguage::isRtl() ? QStringLiteral("arabic") : QStringLiteral("english"), Theme::isDark(parent))));
 }
 QJsonObject supportReport(const DriverCatalog &catalog,const sdiomodern::InstallReport &installation,const QString &lastError){
-    QJsonObject root;root.insert(QStringLiteral("schema"),1);root.insert(QStringLiteral("uiVersion"),QStringLiteral("0.22.4"));
+    QJsonObject root;root.insert(QStringLiteral("schema"),1);root.insert(QStringLiteral("uiVersion"),QStringLiteral("0.22.5"));
     root.insert(QStringLiteral("ignoredHardwareIds"),QJsonArray::fromStringList(catalog.ignoredHardwareIds()));
     root.insert(QStringLiteral("createdUtc"),QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
     root.insert(QStringLiteral("windows"),QSysInfo::prettyProductName());root.insert(QStringLiteral("architecture"),QSysInfo::currentCpuArchitecture());
