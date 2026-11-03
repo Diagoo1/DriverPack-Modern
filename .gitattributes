@@ -1,0 +1,2 @@
+# SQLite is bundled third-party code, not application-authored source.
+native/sqlite/** linguist-vendored
